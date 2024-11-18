@@ -45,7 +45,7 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
 
 6. **Windows only:** If there is an error in the previous step related to "`fbgemm.dll` or one of its dependencies", the issue is likely caused by a missing `libomp140.x86_64.dll` file.
 
-    To optionally verify that a missing `libomp140.x86_64.dll` is causing the issue, install and extract `https://dependencies_x64_release.zip` from [source](https://github.com/lucasg/Dependencies/releases), run `DependenciesGui.exe` from the extracted folder, and open the `fbgemm.dll` file specified in the error message.
+    To optionally verify that a missing `libomp140.x86_64.dll` is causing the issue, install and extract `Dependencies_x64_Release.zip` from [source](https://github.com/lucasg/Dependencies/releases), run `DependenciesGui.exe` from the extracted folder, and open the `fbgemm.dll` file specified in the error message.
 
     To fix the issue, install an `libomp140.x86_64.dll` file. There are many possible sources to install from, but we found [dllme](https://www.dllme.com/dll/files/libomp140_x86_64/versions) to work.
     
@@ -75,6 +75,12 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
     On Windows:
     ```
     isaaclab.bat --install
+    ```
+
+4. To verify the installation, run the following command. Feel free to also run standalone scripts under `source/standalone/demos` to verify that Isaac Lab is working properly.
+
+    ```
+    python source/standalone/tutorials/00_sim/create_empty.py
     ```
 
 ### Part 3: Switch to This Repository!
