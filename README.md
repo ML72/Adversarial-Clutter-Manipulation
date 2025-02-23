@@ -1,6 +1,6 @@
 # Cluttered Manipulation Environment
 
-## Getting Started
+## Environment Setup
 
 This cluttered manipulation environment runs on Isaac Lab, which has to first be installed. At a high level, the overall installation procedure involves first installing Isaac Sim via pip, and then building Isaac Lab from source.
 
@@ -15,22 +15,28 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
     conda activate clutter_manip
     ```
 
-2. Install a CUDA-enabled PyTorch 2.4.0 build. Run the following for CUDA 12:
+2. Install a CUDA-enabled PyTorch 2.5.1 build. Run the following for CUDA 12:
 
     ```
-    pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+    pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
     ```
 
 3. Install the Isaac Sim package:
 
     ```
-    pip install isaacsim==4.2.0.2 --extra-index-url https://pypi.nvidia.com
+    pip install "isaacsim[all,extscache]==4.5.0" --extra-index-url https://pypi.nvidia.com
     ```
 
-4. Install Isaac Sim cached extension dependencies. These are not included in the main python package and should be downloaded upon demand at runtime, but installing them manually avoids future problems with downloads from the registers.
+    Optionally, install Isaac Sim cached extension dependencies. These are not included in the main python package and should be downloaded upon demand at runtime, but installing them manually avoids future problems with downloads from the registers.
 
     ```
-    pip install isaacsim-extscache-physics==4.2.0.2 isaacsim-extscache-kit==4.2.0.2 isaacsim-extscache-kit-sdk==4.2.0.2 --extra-index-url https://pypi.nvidia.com
+    pip install isaacsim-extscache-physics==4.5 isaacsim-extscache-kit==4.5 isaacsim-extscache-kit-sdk==4.5 --extra-index-url https://pypi.nvidia.com
+    ```
+
+4. **Windows only:** If there is an error in any of the previous step related to Windows Long Path support, enable long path support by opening Powershell in Administrator mode and running the following command (separate from the current terminal):
+
+    ```
+    New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
     ```
 
 5. To verify the installation, run the following command. The first run may take a few minutes as dependent extensions are pulled from the registry. Additionally, the first run will prompt users to accept the Nvidia Omniverse License Agreement.
@@ -53,19 +59,13 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
 
 ### Part 2: Build Isaac Lab
 
-1. In a separate directory, clone Isaac Lab:
-
-    ```
-    git clone https://github.com/isaac-sim/IsaacLab.git
-    ```
-
-2. **Linux only:** Install dependencies:
+1. **Linux only:** Install dependencies:
 
     ```
     sudo apt install cmake build-essential
     ```
 
-3. From the root of the Isaac Lab repository, iterate over all extensions in `source/extensions` and install them using pip.
+2. From the root of this repository, iterate over all extensions in `source/extensions` and install them using pip.
 
     On Linux:
     ```
@@ -77,12 +77,29 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
     isaaclab.bat --install
     ```
 
-4. To verify the installation, run the following command. Feel free to also run standalone scripts under `source/standalone/demos` to verify that Isaac Lab is working properly.
+3. To verify the installation, run the following command. Feel free to also run other standalone script under `scripts/demos` to verify that Isaac Lab is working properly.
 
     ```
-    python source/standalone/tutorials/00_sim/create_empty.py
+    python scripts/tutorials/00_sim/create_empty.py
     ```
 
-### Part 3: Switch to This Repository!
+### Part 3: Install Submodule SKRL Version
 
-The environment should be set up and ready to use. When working on this repository, remember to activate the previously created environment!
+1. We want to install our custom SKRL module, which contains adversarial training code. First uninstall the existing version of SKRL:
+
+    ```
+    pip uninstall skrl
+    ```
+
+2. Initialize the submodules by running the following commands:
+
+    ```
+    git submodule update --init --recursive
+    ```
+
+3. Install the submodule in editable mode:
+
+    ```
+    cd submodules/skrl-adv
+    pip install -e .["torch"]
+    ```
