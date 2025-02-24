@@ -3,10 +3,12 @@ name: Build & deploy docs
 on:
   push:
     branches:
-      - main
-      - devel
+      - temporary_disable # Temporarily disable this workflow
+      # - main
+      # - devel
   pull_request:
     types: [opened, synchronize, reopened]
+    branches: [temporary_disable] # Temporarily disable this workflow
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
