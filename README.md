@@ -103,3 +103,16 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
     cd submodules/skrl-adv
     pip install -e .["torch"]
     ```
+## Running Experiments
+
+Example train command:
+
+```
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Clutter1-v0 --num_envs 256 --headless
+```
+
+Example play command:
+
+```
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Clutter1-v0 --num_envs 16 --checkpoint logs/skrl/franka_lift/test_model/checkpoints/best_agent.pt
+```
