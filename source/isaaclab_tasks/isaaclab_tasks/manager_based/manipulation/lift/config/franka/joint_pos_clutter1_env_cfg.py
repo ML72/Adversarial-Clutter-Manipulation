@@ -3,6 +3,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import random
+
+import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.sensors import FrameTransformerCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
@@ -21,14 +24,56 @@ from isaaclab.markers.config import FRAME_MARKER_CFG  # isort: skip
 from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG  # isort: skip
 
 
+cfg_cuboid = sim_utils.CuboidCfg(
+    size=(0.1, 0.1, 0.1),
+    rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+    mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+    collision_props=sim_utils.CollisionPropertiesCfg(),
+)
+cfg_cylinder = sim_utils.CylinderCfg(
+    radius=0.03,
+    height=0.1,
+    rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+    mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+    collision_props=sim_utils.CollisionPropertiesCfg(),
+)
+cfg_capsule = sim_utils.CapsuleCfg(
+    radius=0.03,
+    height=0.1,
+    rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+    mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+    collision_props=sim_utils.CollisionPropertiesCfg(),
+)
+
+objects_cfg = [
+    cfg_cuboid,
+    cfg_cylinder,
+    cfg_capsule,
+]
+
+
+def define_objects(origin, idx):
+    obj_cfg = objects_cfg[idx % len(objects_cfg)]
+    pos = [origin[0], origin[1], origin[2]]
+
+    return RigidObjectCfg(
+        prim_path=f"{{ENV_REGEX_NS}}/Clutter{idx:02d}",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=[1, 0, 0, 0]),
+        spawn=obj_cfg,
+    )
+
+
 @configclass
-class FrankaCubeLiftEnvCfg(LiftClutter1EnvCfg):
+class FrankaCubeLiftClutter1EnvCfg(LiftClutter1EnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
 
         # Set Franka as robot
-        self.scene.robot = FRANKA_PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = FRANKA_PANDA_CFG.replace(
+            prim_path="{ENV_REGEX_NS}/Robot",
+            init_state=FRANKA_PANDA_CFG.init_state.replace(pos=[0.0, 0, -0.15], rot=[1, 0, 0, 0]),
+        )
 
         # Set actions for the specific robot type (franka)
         self.actions.arm_action = mdp.JointPositionActionCfg(
@@ -43,10 +88,14 @@ class FrankaCubeLiftEnvCfg(LiftClutter1EnvCfg):
         # Set the body name for the end effector
         self.commands.object_pose.body_name = "panda_hand"
 
+        origin = [0.6, 0, 0.0]
+        object_pose_offset = [0.0, 0.0, 0.055]
+        object_pose = [origin[i] + object_pose_offset[i] for i in range(len(origin))]
+
         # Set Cube as object
         self.scene.object = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/Object",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.5, 0, 0.055], rot=[1, 0, 0, 0]),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=object_pose, rot=[1, 0, 0, 0]),
             spawn=UsdFileCfg(
                 usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
                 scale=(0.8, 0.8, 0.8),
@@ -80,14 +129,25 @@ class FrankaCubeLiftEnvCfg(LiftClutter1EnvCfg):
             ],
         )
 
+        # Spawn objects
+        self.scene.clutter_object1 = define_objects(origin, 0)
+        self.scene.clutter_object2 = define_objects(origin, 1)
+        self.scene.clutter_object3 = define_objects(origin, 2)
+        self.scene.clutter_object4 = define_objects(origin, 3)
+        self.scene.clutter_object5 = define_objects(origin, 4)
+        self.scene.clutter_object6 = define_objects(origin, 5)
+
+        # Change some settings
+        self.episode_length_s = 6.0
+
 
 @configclass
-class FrankaCubeLiftEnvCfg_PLAY(FrankaCubeLiftEnvCfg):
+class FrankaCubeLiftClutter1EnvCfg_PLAY(FrankaCubeLiftClutter1EnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
         # make a smaller scene for play
-        self.scene.num_envs = 50
+        self.scene.num_envs = 1
         self.scene.env_spacing = 2.5
         # disable randomization for play
         self.observations.policy.enable_corruption = False

@@ -3,6 +3,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import random
+
+import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.sensors import FrameTransformerCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
@@ -12,7 +15,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from isaaclab_tasks.manager_based.manipulation.lift import mdp
-from isaaclab_tasks.manager_based.manipulation.lift.lift_clutter1_env_cfg import LiftClutter1EnvCfg
+from isaaclab_tasks.manager_based.manipulation.lift.lift_camera_env_cfg import LiftCameraEnvCfg
 
 ##
 # Pre-defined configs
@@ -21,8 +24,47 @@ from isaaclab.markers.config import FRAME_MARKER_CFG  # isort: skip
 from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG  # isort: skip
 
 
+cfg_cuboid = sim_utils.CuboidCfg(
+    size=(0.1, 0.1, 0.1),
+    rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+    mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+    collision_props=sim_utils.CollisionPropertiesCfg(),
+)
+cfg_cylinder = sim_utils.CylinderCfg(
+    radius=0.03,
+    height=0.1,
+    rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+    mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+    collision_props=sim_utils.CollisionPropertiesCfg(),
+)
+cfg_capsule = sim_utils.CapsuleCfg(
+    radius=0.03,
+    height=0.1,
+    rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+    mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+    collision_props=sim_utils.CollisionPropertiesCfg(),
+)
+
+objects_cfg = [
+    cfg_cuboid,
+    cfg_cylinder,
+    cfg_capsule,
+]
+
+
+def define_objects(origin, idx):
+    obj_cfg = objects_cfg[idx % len(objects_cfg)]
+    pos = [origin[0], origin[1], origin[2]]
+
+    return RigidObjectCfg(
+        prim_path=f"{{ENV_REGEX_NS}}/Clutter{idx:02d}",
+        init_state=RigidObjectCfg.InitialStateCfg(pos=pos, rot=[1, 0, 0, 0]),
+        spawn=obj_cfg,
+    )
+
+
 @configclass
-class FrankaCubeLiftEnvCfg(LiftClutter1EnvCfg):
+class FrankaCubeLiftClutter1CameraEnvCfg(LiftCameraEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
@@ -80,14 +122,25 @@ class FrankaCubeLiftEnvCfg(LiftClutter1EnvCfg):
             ],
         )
 
+        # Spawn objects
+        self.scene.clutter_object1 = define_objects([0.5, 0, 0], 0)
+        self.scene.clutter_object2 = define_objects([0.5, 0, 0], 1)
+        self.scene.clutter_object3 = define_objects([0.5, 0, 0], 2)
+        self.scene.clutter_object4 = define_objects([0.5, 0, 0], 3)
+        self.scene.clutter_object5 = define_objects([0.5, 0, 0], 4)
+        self.scene.clutter_object6 = define_objects([0.5, 0, 0], 5)
+
+        # Change some settings
+        self.episode_length_s = 6.0
+
 
 @configclass
-class FrankaCubeLiftEnvCfg_PLAY(FrankaCubeLiftEnvCfg):
+class FrankaCubeLiftClutter1EnvCfg_PLAY(FrankaCubeLiftClutter1CameraEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
         # make a smaller scene for play
-        self.scene.num_envs = 50
+        self.scene.num_envs = 1
         self.scene.env_spacing = 2.5
         # disable randomization for play
         self.observations.policy.enable_corruption = False

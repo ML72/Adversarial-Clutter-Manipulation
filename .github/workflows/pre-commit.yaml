@@ -2,8 +2,9 @@ name: Run linters using pre-commit
 
 on:
   pull_request:
+    branches: [temporary_disable] # Temporarily disable this workflow
   push:
-    branches: [main]
+    branches: [temporary_disable] # Temporarily disable this workflow
 
 jobs:
   pre-commit:

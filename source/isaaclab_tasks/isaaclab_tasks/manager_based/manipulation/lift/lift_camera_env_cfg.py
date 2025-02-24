@@ -3,11 +3,15 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import torch
 from dataclasses import MISSING
+from typing import List, Union
+
+from pxr import Gf
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg, DeformableObjectCfg, RigidObjectCfg
-from isaaclab.envs import ManagerBasedRLEnvCfg
+from isaaclab.envs import AdversarialManagerBasedRLEnvCfg
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
@@ -16,6 +20,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
+from isaaclab.sensors import TiledCameraCfg
 from isaaclab.sensors.frame_transformer.frame_transformer_cfg import FrameTransformerCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import GroundPlaneCfg, UsdFileCfg
 from isaaclab.utils import configclass
@@ -23,9 +28,19 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from . import mdp
 
+origin = [0.5, 0, 0]
+
+
 ##
 # Scene definition
 ##
+
+box_length = 0.6096
+box_width = 0.9144
+box_height = 0.3048
+thickness = 0.0010
+
+num_clutter_objects = 6
 
 
 @configclass
@@ -49,6 +64,60 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
     )
 
+    # # Box
+    # wall1 = RigidObjectCfg(
+    #     prim_path="{ENV_REGEX_NS}/Wall1",
+    #     init_state=RigidObjectCfg.InitialStateCfg(
+    #         pos=(torch.tensor(origin) + torch.tensor([-box_length / 2, 0, box_height / 2])).tolist(),
+    #         rot=[0, 0, 0, 1],    # No rotation
+    #     ),
+    #     spawn=sim_utils.CuboidCfg(
+    #         size=(thickness, box_width, box_height),
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000.0),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(),
+    #     )
+    # )
+    # wall2 = RigidObjectCfg(
+    #     prim_path="{ENV_REGEX_NS}/Wall2",
+    #     init_state=RigidObjectCfg.InitialStateCfg(
+    #         pos=(torch.tensor(origin) + torch.tensor([0, -box_width / 2, box_height / 2])).tolist(),
+    #         rot=[0, 0, 0, 1],    # No rotation
+    #     ),
+    #     spawn=sim_utils.CuboidCfg(
+    #         size=(box_length, thickness, box_height),
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000.0),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(),
+    #     )
+    # )
+    # wall3 = RigidObjectCfg(
+    #     prim_path="{ENV_REGEX_NS}/Wall3",
+    #     init_state=RigidObjectCfg.InitialStateCfg(
+    #         pos=(torch.tensor(origin) + torch.tensor([box_length / 2, 0, box_height / 2])).tolist(),
+    #         rot=[0, 0, 0, 1],    # No rotation
+    #     ),
+    #     spawn=sim_utils.CuboidCfg(
+    #         size=(thickness, box_width, box_height),
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000.0),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(),
+    #     )
+    # )
+    # wall4 = RigidObjectCfg(
+    #     prim_path="{ENV_REGEX_NS}/Wall4",
+    #     init_state=RigidObjectCfg.InitialStateCfg(
+    #         pos=(torch.tensor(origin) + torch.tensor([0, box_width / 2, box_height / 2])).tolist(),
+    #         rot=[0, 0, 0, 1],    # No rotation
+    #     ),
+    #     spawn=sim_utils.CuboidCfg(
+    #         size=(box_length, thickness, box_height),
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+    #         mass_props=sim_utils.MassPropertiesCfg(mass=10000.0),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(),
+    #     )
+    # )
+
     # plane
     plane = AssetBaseCfg(
         prim_path="/World/GroundPlane",
@@ -61,6 +130,28 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         prim_path="/World/light",
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
     )
+
+    # camera
+    camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="{ENV_REGEX_NS}/table_cam",
+        update_period=0.1,
+        offset=TiledCameraCfg.OffsetCfg(
+            pos=(1.1, 0, 0.7), rot=(0.66446, 0.24185, 0.24185, 0.66446), convention="opengl"
+        ),
+        data_types=["rgb"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=25.0,
+            focus_distance=400.0,
+            horizontal_aperture=20.955,  # clipping_range=(0.05, 2.0)
+        ),
+        width=100,
+        height=100,
+    )
+
+    def __post_init__(self):
+        """Initialize with a variable number of clutter objects."""
+        for i in range(num_clutter_objects):
+            setattr(self, f"clutter_object{i+1}", MISSING)
 
 
 ##
@@ -76,9 +167,9 @@ class CommandsCfg:
         asset_name="robot",
         body_name=MISSING,  # will be set by agent env cfg
         resampling_time_range=(5.0, 5.0),
-        debug_vis=True,
+        debug_vis=False,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.4, 0.6), pos_y=(-0.25, 0.25), pos_z=(0.25, 0.5), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
+            pos_x=(0.5, 0.5), pos_y=(0.0, 0.0), pos_z=(0.4, 0.4), roll=(0.0, 0.0), pitch=(0.0, 0.0), yaw=(0.0, 0.0)
         ),
     )
 
@@ -101,14 +192,22 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        object_position = ObsTerm(func=mdp.object_position_in_robot_root_frame)
-        target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "object_pose"})
-        actions = ObsTerm(func=mdp.last_action)
+        # joint_vel = ObsTerm(func=mdp.joint_vel_rel)
+        # object_position = ObsTerm(func=mdp.object_position_in_robot_root_frame)
+        # target_object_position = ObsTerm(func=mdp.generated_commands, params={"command_name": "object_pose"})
+        # actions = ObsTerm(func=mdp.last_action)
+        rgb = ObsTerm(func=mdp.get_camera_data, params={"type": "rgb"})
 
         def __post_init__(self):
             self.enable_corruption = True
-            self.concatenate_terms = True
+            self.concatenate_terms = False
+
+            """Initialize with a variable number of clutter objects."""
+            # for i in range(num_clutter_objects):
+            #     clutter_pos = ObsTerm(func=mdp.clutter_position_in_robot_root_frame, params={
+            #         "object_cfg": SceneEntityCfg(f"clutter_object{i+1}")
+            #     })
+            #     setattr(self, f"clutter_position{i+1}", clutter_pos)
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -124,7 +223,7 @@ class EventCfg:
         func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-0.1, 0.1), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
+            "pose_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "z": (0.0, 0.0)},
             "velocity_range": {},
             "asset_cfg": SceneEntityCfg("object", body_names="Object"),
         },
@@ -138,18 +237,6 @@ class RewardsCfg:
     reaching_object = RewTerm(func=mdp.object_ee_distance, params={"std": 0.1}, weight=1.0)
 
     lifting_object = RewTerm(func=mdp.object_is_lifted, params={"minimal_height": 0.04}, weight=15.0)
-
-    object_goal_tracking = RewTerm(
-        func=mdp.object_goal_distance,
-        params={"std": 0.3, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=16.0,
-    )
-
-    object_goal_tracking_fine_grained = RewTerm(
-        func=mdp.object_goal_distance,
-        params={"std": 0.05, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=5.0,
-    )
 
     # action penalty
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
@@ -177,11 +264,11 @@ class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 50000}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 50000}
     )
 
 
@@ -191,7 +278,7 @@ class CurriculumCfg:
 
 
 @configclass
-class LiftEnvCfg(ManagerBasedRLEnvCfg):
+class LiftCameraEnvCfg(AdversarialManagerBasedRLEnvCfg):
     """Configuration for the lifting environment."""
 
     # Scene settings
@@ -211,6 +298,7 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.episode_length_s = 5.0
+        self.num_clutter_objects = num_clutter_objects
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
         self.sim.render_interval = self.decimation
@@ -218,5 +306,5 @@ class LiftEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 4
-        self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024
+        self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024 * 8
         self.sim.physx.friction_correlation_distance = 0.00625
