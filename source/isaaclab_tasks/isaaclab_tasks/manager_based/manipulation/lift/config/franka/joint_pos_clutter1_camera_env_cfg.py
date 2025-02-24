@@ -15,7 +15,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from isaaclab_tasks.manager_based.manipulation.lift import mdp
-from isaaclab_tasks.manager_based.manipulation.lift.lift_env_cfg import LiftEnvCfg
+from isaaclab_tasks.manager_based.manipulation.lift.lift_camera_env_cfg import LiftCameraEnvCfg
 
 ##
 # Pre-defined configs
@@ -64,16 +64,13 @@ def define_objects(origin, idx):
 
 
 @configclass
-class FrankaCubeLiftCustomEnvCfg(LiftEnvCfg):
+class FrankaCubeLiftClutter1CameraEnvCfg(LiftCameraEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
 
         # Set Franka as robot
-        self.scene.robot = FRANKA_PANDA_CFG.replace(
-            prim_path="{ENV_REGEX_NS}/Robot",
-            init_state=FRANKA_PANDA_CFG.init_state.replace(pos=[0.0, 0, -0.15], rot=[1, 0, 0, 0]),
-        )
+        self.scene.robot = FRANKA_PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # Set actions for the specific robot type (franka)
         self.actions.arm_action = mdp.JointPositionActionCfg(
@@ -88,14 +85,10 @@ class FrankaCubeLiftCustomEnvCfg(LiftEnvCfg):
         # Set the body name for the end effector
         self.commands.object_pose.body_name = "panda_hand"
 
-        origin = [0.6, 0, 0.0]
-        object_pose_offset = [0.0, 0.0, 0.055]
-        object_pose = [origin[i] + object_pose_offset[i] for i in range(len(origin))]
-
         # Set Cube as object
         self.scene.object = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/Object",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=object_pose, rot=[1, 0, 0, 0]),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.5, 0, 0.055], rot=[1, 0, 0, 0]),
             spawn=UsdFileCfg(
                 usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
                 scale=(0.8, 0.8, 0.8),
@@ -130,19 +123,19 @@ class FrankaCubeLiftCustomEnvCfg(LiftEnvCfg):
         )
 
         # Spawn objects
-        self.scene.clutter_object1 = define_objects(origin, 0)
-        self.scene.clutter_object2 = define_objects(origin, 1)
-        self.scene.clutter_object3 = define_objects(origin, 2)
-        self.scene.clutter_object4 = define_objects(origin, 3)
-        self.scene.clutter_object5 = define_objects(origin, 4)
-        self.scene.clutter_object6 = define_objects(origin, 5)
+        self.scene.clutter_object1 = define_objects([0.5, 0, 0], 0)
+        self.scene.clutter_object2 = define_objects([0.5, 0, 0], 1)
+        self.scene.clutter_object3 = define_objects([0.5, 0, 0], 2)
+        self.scene.clutter_object4 = define_objects([0.5, 0, 0], 3)
+        self.scene.clutter_object5 = define_objects([0.5, 0, 0], 4)
+        self.scene.clutter_object6 = define_objects([0.5, 0, 0], 5)
 
         # Change some settings
         self.episode_length_s = 6.0
 
 
 @configclass
-class FrankaCubeLiftCustomEnvCfg_PLAY(FrankaCubeLiftCustomEnvCfg):
+class FrankaCubeLiftClutter1EnvCfg_PLAY(FrankaCubeLiftClutter1CameraEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()

@@ -46,10 +46,10 @@ gym.register(
 ##
 
 gym.register(
-    id="Isaac-Lift-Cube-Franka-Custom-v0",
+    id="Isaac-Lift-Cube-Franka-Clutter1-v0",
     entry_point="isaaclab.envs:AdversarialManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.joint_pos_custom_env_cfg:FrankaCubeLiftCustomEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.joint_pos_clutter1_env_cfg:FrankaCubeLiftClutter1EnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:LiftCubePPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
@@ -59,10 +59,10 @@ gym.register(
 )
 
 gym.register(
-    id="Isaac-Lift-Cube-Franka-Custom-Play-v0",
+    id="Isaac-Lift-Cube-Franka-Clutter1-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.joint_pos_custom_env_cfg:FrankaCubeLiftCustomEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.joint_pos_clutter1_env_cfg:FrankaCubeLiftClutter1EnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:LiftCubePPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
@@ -72,20 +72,20 @@ gym.register(
 )
 
 gym.register(
-    id="Isaac-Lift-Cube-Franka-Custom-Camera-v0",
+    id="Isaac-Lift-Cube-Franka-Clutter1-Camera-v0",
     entry_point="isaaclab.envs:AdversarialManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.joint_pos_custom_camera_env_cfg:FrankaCubeLiftCustomCameraEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.joint_pos_clutter1_camera_env_cfg:FrankaCubeLiftClutter1CameraEnvCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_camera_cfg.yaml",
     },
     disable_env_checker=True,
 )
 
 gym.register(
-    id="Isaac-Lift-Cube-Franka-Custom-Camera-Play-v0",
+    id="Isaac-Lift-Cube-Franka-Clutter1-Camera-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.joint_pos_custom_camera_env_cfg:FrankaCubeLiftCustomCameraEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.joint_pos_clutter1_camera_env_cfg:FrankaCubeLiftClutter1CameraEnvCfg_PLAY",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_camera_cfg.yaml",
     },
     disable_env_checker=True,
