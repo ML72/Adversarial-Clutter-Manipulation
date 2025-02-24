@@ -326,7 +326,7 @@ class CurriculumCfg:
 
 
 @configclass
-class LiftEnvCfg(AdversarialManagerBasedRLEnvCfg):
+class LiftClutter1EnvCfg(AdversarialManagerBasedRLEnvCfg):
     """Configuration for the lifting environment."""
 
     # Scene settings

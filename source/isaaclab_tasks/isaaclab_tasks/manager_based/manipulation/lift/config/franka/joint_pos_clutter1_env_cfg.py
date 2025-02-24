@@ -15,7 +15,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from isaaclab_tasks.manager_based.manipulation.lift import mdp
-from isaaclab_tasks.manager_based.manipulation.lift.lift_env_cfg import LiftEnvCfg
+from isaaclab_tasks.manager_based.manipulation.lift.lift_clutter1_env_cfg import LiftClutter1EnvCfg
 
 ##
 # Pre-defined configs
@@ -64,7 +64,7 @@ def define_objects(origin, idx):
 
 
 @configclass
-class FrankaCubeLiftClutter1EnvCfg(LiftEnvCfg):
+class FrankaCubeLiftClutter1EnvCfg(LiftClutter1EnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
