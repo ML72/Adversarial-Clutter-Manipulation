@@ -1,4 +1,4 @@
-# Cluttered Manipulation Environment
+# Adversarial Cluttered Manipulation
 
 ## Environment Setup
 
