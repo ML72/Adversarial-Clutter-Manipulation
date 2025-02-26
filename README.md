@@ -116,3 +116,9 @@ Example play command:
 ```
 isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Clutter1-v0 --num_envs 16 --checkpoint logs/skrl/franka_lift/test_model/checkpoints/best_agent.pt
 ```
+
+Example tensorboard command:
+
+```
+tensorboard --logdir=logs\skrl\franka_lift
+```
