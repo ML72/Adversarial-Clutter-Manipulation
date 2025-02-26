@@ -137,6 +137,7 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
             np.ndarray: The initial observation.
         """
         adversary_pos = self.adversary_action[reset_env_ids]
+        adversary_pos = torch.clamp(adversary_pos, -1, 1)
 
         for asset_name, rigid_object in self.scene._rigid_objects.items():
             if "clutter_object" not in asset_name:
