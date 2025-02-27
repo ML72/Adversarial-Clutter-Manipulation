@@ -151,9 +151,9 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
             root_velocity = clutter_obj_state[:, 7:] * 0.0  # zero out the velocity
             root_pose[:, :3] += torch.stack(
                 [
-                    adversary_pos[:, clutter_idx * 3] * 0.15,
-                    adversary_pos[:, clutter_idx * 3 + 1] * 0.15,
-                    torch.abs(adversary_pos[:, clutter_idx * 3 + 2]) * 0.2 + 0.15,
+                    adversary_pos[:, clutter_idx * 3] * 0.1,
+                    adversary_pos[:, clutter_idx * 3 + 1] * 0.2,
+                    torch.abs(adversary_pos[:, clutter_idx * 3 + 2]) * 0.1 + 0.1,
                 ],
                 dim=-1,
             ).to(root_pose.device)

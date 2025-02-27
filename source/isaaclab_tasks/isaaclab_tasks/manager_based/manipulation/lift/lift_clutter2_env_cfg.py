@@ -209,6 +209,19 @@ class EventCfg:
         },
     )
 
+    def __post_init__(self):
+        for i in range(num_clutter_objects):
+            clutter_pos = EventTerm(
+                func=mdp.reset_root_state_uniform,
+                mode="reset",
+                params={
+                    "pose_range": {"x": (-0.1, 0.1), "y": (-0.2, 0.2), "z": (0.0, 0.0)},
+                    "velocity_range": {},
+                    "asset_cfg": SceneEntityCfg(f"clutter_object{i+1}", body_names=f"Clutter{format(i, '02d')}"),
+                },
+            )
+            setattr(self, f"reset_clutter_position{i+1}", clutter_pos)
+
 
 
 @configclass
