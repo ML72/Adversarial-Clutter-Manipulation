@@ -26,7 +26,9 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
         super().__init__(cfg, **kwargs)
         self.num_clutter_objects = cfg.num_clutter_objects
         self.position_dim = 3
-        self.adversary_action = torch.zeros((self.num_envs, self.num_clutter_objects * self.position_dim)).to(
+
+        # dim 1 of adversary_action is num_clutter_objects + 1, to account for the object that is placed
+        self.adversary_action = torch.zeros((self.num_envs, (self.num_clutter_objects + 1) * self.position_dim)).to(
             self.device
         )
 
@@ -140,23 +142,23 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
         adversary_pos = torch.clamp(adversary_pos, -1, 1)
 
         for asset_name, rigid_object in self.scene._rigid_objects.items():
-            if "clutter_object" not in asset_name:
-                continue
-            clutter_idx = int(asset_name.split("clutter_object")[-1]) - 1
-            clutter_obj_state = rigid_object.data.default_root_state[
-                reset_env_ids
-            ].clone()  # get states of only envs we want to reset
-            clutter_obj_state[:, 0:3] += self.scene.env_origins[reset_env_ids]
-            root_pose = clutter_obj_state[:, :7]
-            root_velocity = clutter_obj_state[:, 7:] * 0.0  # zero out the velocity
-            root_pose[:, :3] += torch.stack(
-                [
-                    adversary_pos[:, clutter_idx * 3] * 0.1,
-                    adversary_pos[:, clutter_idx * 3 + 1] * 0.2,
-                    torch.abs(adversary_pos[:, clutter_idx * 3 + 2]) * 0.1 + 0.1,
-                ],
-                dim=-1,
-            ).to(root_pose.device)
-            rigid_object.write_root_link_pose_to_sim(root_pose, env_ids=reset_env_ids)
-            rigid_object.write_root_com_velocity_to_sim(root_velocity, env_ids=reset_env_ids)
+            # catch both "object" and "clutter_object<i>"
+            if "object" in asset_name: 
+                object_idx = int(asset_name.split("clutter_object")[-1]) if "clutter_object" in asset_name else 0
+                clutter_obj_state = rigid_object.data.default_root_state[
+                    reset_env_ids
+                ].clone()  # get states of only envs we want to reset
+                clutter_obj_state[:, 0:3] += self.scene.env_origins[reset_env_ids]
+                root_pose = clutter_obj_state[:, :7]
+                root_velocity = clutter_obj_state[:, 7:] * 0.0  # zero out the velocity
+                root_pose[:, :3] += torch.stack(
+                    [
+                        adversary_pos[:, object_idx * 3] * 0.1,
+                        adversary_pos[:, object_idx * 3 + 1] * 0.2,
+                        torch.abs(adversary_pos[:, object_idx * 3 + 2]) * 0.1 + 0.1,
+                    ],
+                    dim=-1,
+                ).to(root_pose.device)
+                rigid_object.write_root_link_pose_to_sim(root_pose, env_ids=reset_env_ids)
+                rigid_object.write_root_com_velocity_to_sim(root_velocity, env_ids=reset_env_ids)
         self.scene.write_data_to_sim()
