@@ -19,6 +19,11 @@ from .adversarial_manager_based_rl_env_cfg import AdversarialManagerBasedRLEnvCf
 from .manager_based_rl_env import ManagerBasedRLEnv
 
 
+# Amplitude of the cube position (to scale a value between -1 and 1)
+cube_position_ampl_x = 0.25
+cube_position_ampl_y = 0.4
+cube_position_ampl_z = 0.1
+
 class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
     """The superclass for the manager-based workflow reinforcement learning-based environments."""
 
@@ -153,9 +158,9 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
                 root_velocity = clutter_obj_state[:, 7:] * 0.0  # zero out the velocity
                 root_pose[:, :3] += torch.stack(
                     [
-                        adversary_pos[:, object_idx * 3] * 0.1,
-                        adversary_pos[:, object_idx * 3 + 1] * 0.2,
-                        torch.abs(adversary_pos[:, object_idx * 3 + 2]) * 0.1 + 0.1,
+                        adversary_pos[:, object_idx * 3] * cube_position_ampl_x,
+                        adversary_pos[:, object_idx * 3 + 1] * cube_position_ampl_y,
+                        torch.abs(adversary_pos[:, object_idx * 3 + 2]) * cube_position_ampl_z + 0.1,
                     ],
                     dim=-1,
                 ).to(root_pose.device)
