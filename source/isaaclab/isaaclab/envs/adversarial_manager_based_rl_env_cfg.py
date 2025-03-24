@@ -15,3 +15,5 @@ class AdversarialManagerBasedRLEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for a reinforcement learning environment with the manager-based workflow."""
 
     num_clutter_objects: int = MISSING
+
+    positioning_strategy: str = MISSING

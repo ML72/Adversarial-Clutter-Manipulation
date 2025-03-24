@@ -45,6 +45,15 @@ parser.add_argument(
     help="The RL algorithm used for training the skrl agent.",
 )
 
+parser.add_argument("--name", type=str, default=None, help="Name of the experiment.")
+parser.add_argument(
+    "--positioning",
+    type=str,
+    default="domain_rand",
+    choices=["domain_rand", "domain_rand_restricted", "pure_adversary"],
+    help="Positioning of the objects in the environment."
+)
+
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
@@ -132,15 +141,21 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     agent_cfg["seed"] = args_cli.seed if args_cli.seed is not None else agent_cfg["seed"]
     env_cfg.seed = agent_cfg["seed"]
 
+    # write in additional custom parameters
+    if hasattr(env_cfg, "positioning_strategy"):
+        env_cfg.positioning_strategy = args_cli.positioning
+
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "skrl", agent_cfg["agent"]["experiment"]["directory"])
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Logging experiment in directory: {log_root_path}")
     # specify directory for logging runs: {time-stamp}_{run_name}
-    log_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{algorithm}_{args_cli.ml_framework}"
-    print(f"Exact experiment name requested from command line {log_dir}")
-    if agent_cfg["agent"]["experiment"]["experiment_name"]:
-        log_dir += f'_{agent_cfg["agent"]["experiment"]["experiment_name"]}'
+    log_dir = args_cli.name
+    if not log_dir:
+        log_dir = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{algorithm}_{args_cli.ml_framework}"
+        print(f"Exact experiment name requested from command line {log_dir}")
+        if agent_cfg["agent"]["experiment"]["experiment_name"]:
+            log_dir += f'_{agent_cfg["agent"]["experiment"]["experiment_name"]}'
     # set directory into agent config
     agent_cfg["agent"]["experiment"]["directory"] = log_root_path
     agent_cfg["agent"]["experiment"]["experiment_name"] = log_dir
