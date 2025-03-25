@@ -16,4 +16,4 @@ class AdversarialManagerBasedRLEnvCfg(ManagerBasedRLEnvCfg):
 
     num_clutter_objects: int = MISSING
 
-    positioning_strategy: str = MISSING
+    positioning_strategy: str = "<CHANGE_THIS_STRATEGY>" # Set this for training, does not matter for evaluation

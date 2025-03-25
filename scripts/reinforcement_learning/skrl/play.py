@@ -13,6 +13,7 @@ a more user-friendly way.
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+import json
 
 from isaaclab.app import AppLauncher
 
@@ -46,6 +47,9 @@ parser.add_argument(
     help="The RL algorithm used for training the skrl agent.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+
+parser.add_argument("--max-episodes", type=int, default=-1, help="Number of episodes to run the agent (-1 for no limit).")
+parser.add_argument("--save-file", type=str, default=None, help="Save the run log to a file.")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -94,6 +98,9 @@ from isaaclab_tasks.utils import get_checkpoint_path, load_cfg_from_registry, pa
 # config shortcuts
 algorithm = args_cli.algorithm.lower()
 
+# result folder path
+RESULT_FOLDER = os.path.join("results", "skrl")
+os.makedirs(RESULT_FOLDER, exist_ok=True)
 
 def main():
     """Play with skrl agent."""
@@ -156,6 +163,10 @@ def main():
     # wrap around environment for skrl
     env = SkrlVecEnvWrapper(env, ml_framework=args_cli.ml_framework)  # same as: `wrap_env(env, wrapper="auto")`
 
+    # read in command line configuration
+    max_episodes = args_cli.max_episodes
+    result_filename = args_cli.save_file
+
     # configure and instantiate the skrl runner
     # https://skrl.readthedocs.io/en/latest/api/utils/runner.html
     experiment_cfg["trainer"]["close_environment_at_exit"] = False
@@ -167,6 +178,19 @@ def main():
     runner.agent.load(resume_path)
     # set agent to evaluation mode
     runner.agent.set_running_mode("eval")
+
+    # utility function for randomizing position of blocks
+    def config_blocks():
+        env.env.adversary_action = torch.rand(
+            env.env.adversary_action.shape,
+            device=env.env.adversary_action.device
+        ) * 2 - 1
+    
+    config_blocks()
+
+    # setup tracking variables
+    rewards_log = []
+    curr_episode = 0
 
     # reset environment
     obs, _ = env.reset()
@@ -182,6 +206,30 @@ def main():
             actions = outputs[-1].get("mean_actions", outputs[0])
             # env stepping
             obs, rewards, terminated, truncated, infos = env.step(actions)
+
+            if truncated.any():
+                # log old blocks
+                adversary_action_old = env.env.adversary_action
+                for i in range(len(rewards)):
+                    rewards_log.append([
+                        round(float(adversary_action_old[i,0]), 5),
+                        round(float(adversary_action_old[i,1]), 5),
+                        round(float(rewards[i]), 5)
+                    ])
+                
+                # update tracking variables
+                curr_episode += 1
+                if max_episodes >= 0:
+                    print(f"Episode finished: {curr_episode}/{max_episodes}")
+
+                # terminate program if over max episodes
+                if curr_episode >= max_episodes and max_episodes >= 0:
+                    with open(os.path.join(RESULT_FOLDER, result_filename), 'w') as json_file:
+                        json.dump(rewards_log, json_file)
+                    exit()
+
+                # set new blocks
+                config_blocks()
         if args_cli.video:
             timestep += 1
             # exit the play loop after recording one video
