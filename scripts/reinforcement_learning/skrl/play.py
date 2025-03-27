@@ -179,11 +179,18 @@ def main():
     # set agent to evaluation mode
     runner.agent.set_running_mode("eval")
 
+    # utility function to get environment through wrappers
+    def get_env():
+        res = env
+        while hasattr(res, "env"):
+            res = res.env
+        return res
+
     # utility function for randomizing position of blocks
     def config_blocks():
-        env.env.adversary_action = torch.rand(
-            env.env.adversary_action.shape,
-            device=env.env.adversary_action.device
+        get_env().adversary_action = torch.rand(
+            get_env().adversary_action.shape,
+            device=get_env().adversary_action.device
         ) * 2 - 1
     
     config_blocks()
@@ -209,11 +216,12 @@ def main():
 
             if truncated.any():
                 # log old blocks
-                adversary_action_old = env.env.adversary_action
+                adversary_action_old = get_env().adversary_action
                 for i in range(len(rewards)):
                     rewards_log.append([
                         round(float(adversary_action_old[i,0]), 5),
                         round(float(adversary_action_old[i,1]), 5),
+                        round(float(adversary_action_old[i,2]), 5),
                         round(float(rewards[i]), 5)
                     ])
                 
