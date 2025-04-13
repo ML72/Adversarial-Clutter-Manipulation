@@ -153,10 +153,11 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
                 clutter_obj_state = rigid_object.data.default_root_state[
                     reset_env_ids
                 ].clone()  # get states of only envs we want to reset
-                clutter_obj_state[:, 0:3] += self.scene.env_origins[reset_env_ids]
+                clutter_obj_state[:, 0:3] += self.scene.env_origins[reset_env_ids]                
+
+                # Set position to the adversary position
                 root_pose = clutter_obj_state[:, :7]
-                root_velocity = clutter_obj_state[:, 7:] * 0.0  # zero out the velocity
-                root_pose[:, :3] += torch.stack(
+                root_pose[:,:3] += torch.stack(
                     [
                         adversary_pos[:, object_idx * 3] * cube_position_ampl_x,
                         adversary_pos[:, object_idx * 3 + 1] * cube_position_ampl_y,
@@ -164,6 +165,14 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
                     ],
                     dim=-1,
                 ).to(root_pose.device)
+
+                # Set rotation quaternion to identity
+                root_pose[:,3:] = torch.tensor([1, 0, 0, 0]).to(root_pose.device)
+
+                # Set velocity to 0
+                root_velocity = clutter_obj_state[:, 7:] * 0.0
+
+                # Write to sim
                 rigid_object.write_root_link_pose_to_sim(root_pose, env_ids=reset_env_ids)
                 rigid_object.write_root_com_velocity_to_sim(root_velocity, env_ids=reset_env_ids)
         self.scene.write_data_to_sim()

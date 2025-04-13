@@ -235,13 +235,13 @@ class RewardsCfg:
     object_goal_tracking = RewTerm(
         func=mdp.object_goal_distance,
         params={"std": 0.3, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=16.0,
+        weight=64.0,
     )
 
     object_goal_tracking_fine_grained = RewTerm(
         func=mdp.object_goal_distance,
         params={"std": 0.05, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=5.0,
+        weight=20.0,
     )
 
     # action penalty
@@ -305,6 +305,7 @@ class LiftClutter2EnvCfg(AdversarialManagerBasedRLEnvCfg):
         self.decimation = 2
         self.episode_length_s = 5.0
         self.num_clutter_objects = num_clutter_objects
+        
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
         self.sim.render_interval = self.decimation

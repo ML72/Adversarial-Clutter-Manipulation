@@ -54,9 +54,9 @@ objects_cfg = [
 def define_objects(origin, idx):
     obj_cfg = objects_cfg[idx % len(objects_cfg)]
     pos = [
-        origin[0] + random.uniform(-0.1, 0.1),
-        origin[1] + random.uniform(-0.25, 0.25),
-        origin[2] + random.uniform(0.2, 0.5),
+        origin[0],
+        origin[1],
+        origin[2],
     ]
 
     return RigidObjectCfg(

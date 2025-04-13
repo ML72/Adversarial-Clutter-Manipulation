@@ -136,17 +136,17 @@ def main():
     log_dir = os.path.dirname(os.path.dirname(resume_path))
 
     # create isaac environment
-    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    env_temp = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
     # convert to single-agent instance if required by the RL algorithm
-    if isinstance(env.unwrapped, DirectMARLEnv) and algorithm in ["ppo"]:
-        env = multi_agent_to_single_agent(env)
+    if isinstance(env_temp.unwrapped, DirectMARLEnv) and algorithm in ["ppo"]:
+        env_temp = multi_agent_to_single_agent(env_temp)
 
     # get environment (physics) dt for real-time evaluation
     try:
-        dt = env.physics_dt
+        dt = env_temp.physics_dt
     except AttributeError:
-        dt = env.unwrapped.physics_dt
+        dt = env_temp.unwrapped.physics_dt
 
     # wrap for video recording
     if args_cli.video:
@@ -158,10 +158,10 @@ def main():
         }
         print("[INFO] Recording videos during training.")
         print_dict(video_kwargs, nesting=4)
-        env = gym.wrappers.RecordVideo(env, **video_kwargs)
+        env_temp = gym.wrappers.RecordVideo(env_temp, **video_kwargs)
 
     # wrap around environment for skrl
-    env = SkrlVecEnvWrapper(env, ml_framework=args_cli.ml_framework)  # same as: `wrap_env(env, wrapper="auto")`
+    env = SkrlVecEnvWrapper(env_temp, ml_framework=args_cli.ml_framework)  # same as: `wrap_env(env, wrapper="auto")`
 
     # read in command line configuration
     max_episodes = args_cli.max_episodes
@@ -176,7 +176,6 @@ def main():
 
     print(f"[INFO] Loading model checkpoint from: {resume_path}")
     runner.agent.load(resume_path)
-    # set agent to evaluation mode
     runner.agent.set_running_mode("eval")
 
     # utility function to get environment through wrappers
@@ -187,19 +186,19 @@ def main():
         return res
 
     # utility function for randomizing position of blocks
+    torch.manual_seed(0)
     def config_blocks():
         get_env().adversary_action = torch.rand(
             get_env().adversary_action.shape,
             device=get_env().adversary_action.device
         ) * 2 - 1
-    
-    config_blocks()
 
     # setup tracking variables
     rewards_log = []
     curr_episode = 0
 
     # reset environment
+    config_blocks()
     obs, _ = env.reset()
     timestep = 0
     # simulate environment
@@ -235,9 +234,13 @@ def main():
                     with open(os.path.join(RESULT_FOLDER, result_filename), 'w') as json_file:
                         json.dump(rewards_log, json_file)
                     exit()
-
-                # set new blocks
+                
+                # reset SKRL environment and set new blocks
+                # this is a hack, without it the _reset_once field prevents proper resetting
+                env._reset_once = True
                 config_blocks()
+                obs, _ = env.reset()
+
         if args_cli.video:
             timestep += 1
             # exit the play loop after recording one video
