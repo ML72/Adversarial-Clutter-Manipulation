@@ -14,7 +14,7 @@ from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
 import isaaclab_tasks.manager_based.manipulation.lift.mdp as mdp
 
-from . import joint_pos_env_cfg
+from . import joint_pos_simple_env_cfg
 
 ##
 # Pre-defined configs
@@ -28,7 +28,7 @@ from isaaclab_assets.robots.franka import FRANKA_PANDA_HIGH_PD_CFG  # isort: ski
 
 
 @configclass
-class FrankaCubeLiftEnvCfg(joint_pos_env_cfg.FrankaCubeLiftEnvCfg):
+class FrankaCubeLiftEnvCfg(joint_pos_simple_env_cfg.FrankaCubeLiftSimpleEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()

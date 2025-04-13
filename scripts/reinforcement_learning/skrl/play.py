@@ -13,6 +13,7 @@ a more user-friendly way.
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+import json
 
 from isaaclab.app import AppLauncher
 
@@ -46,6 +47,9 @@ parser.add_argument(
     help="The RL algorithm used for training the skrl agent.",
 )
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time, if possible.")
+
+parser.add_argument("--max-episodes", type=int, default=-1, help="Number of episodes to run the agent (-1 for no limit).")
+parser.add_argument("--save-file", type=str, default=None, help="Save the run log to a file.")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -94,6 +98,9 @@ from isaaclab_tasks.utils import get_checkpoint_path, load_cfg_from_registry, pa
 # config shortcuts
 algorithm = args_cli.algorithm.lower()
 
+# result folder path
+RESULT_FOLDER = os.path.join("results", "skrl")
+os.makedirs(RESULT_FOLDER, exist_ok=True)
 
 def main():
     """Play with skrl agent."""
@@ -129,17 +136,17 @@ def main():
     log_dir = os.path.dirname(os.path.dirname(resume_path))
 
     # create isaac environment
-    env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    env_temp = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
 
     # convert to single-agent instance if required by the RL algorithm
-    if isinstance(env.unwrapped, DirectMARLEnv) and algorithm in ["ppo"]:
-        env = multi_agent_to_single_agent(env)
+    if isinstance(env_temp.unwrapped, DirectMARLEnv) and algorithm in ["ppo"]:
+        env_temp = multi_agent_to_single_agent(env_temp)
 
     # get environment (physics) dt for real-time evaluation
     try:
-        dt = env.physics_dt
+        dt = env_temp.physics_dt
     except AttributeError:
-        dt = env.unwrapped.physics_dt
+        dt = env_temp.unwrapped.physics_dt
 
     # wrap for video recording
     if args_cli.video:
@@ -151,10 +158,14 @@ def main():
         }
         print("[INFO] Recording videos during training.")
         print_dict(video_kwargs, nesting=4)
-        env = gym.wrappers.RecordVideo(env, **video_kwargs)
+        env_temp = gym.wrappers.RecordVideo(env_temp, **video_kwargs)
 
     # wrap around environment for skrl
-    env = SkrlVecEnvWrapper(env, ml_framework=args_cli.ml_framework)  # same as: `wrap_env(env, wrapper="auto")`
+    env = SkrlVecEnvWrapper(env_temp, ml_framework=args_cli.ml_framework)  # same as: `wrap_env(env, wrapper="auto")`
+
+    # read in command line configuration
+    max_episodes = args_cli.max_episodes
+    result_filename = args_cli.save_file
 
     # configure and instantiate the skrl runner
     # https://skrl.readthedocs.io/en/latest/api/utils/runner.html
@@ -165,10 +176,29 @@ def main():
 
     print(f"[INFO] Loading model checkpoint from: {resume_path}")
     runner.agent.load(resume_path)
-    # set agent to evaluation mode
     runner.agent.set_running_mode("eval")
 
+    # utility function to get environment through wrappers
+    def get_env():
+        res = env
+        while hasattr(res, "env"):
+            res = res.env
+        return res
+
+    # utility function for randomizing position of blocks
+    torch.manual_seed(0)
+    def config_blocks():
+        get_env().adversary_action = torch.rand(
+            get_env().adversary_action.shape,
+            device=get_env().adversary_action.device
+        ) * 2 - 1
+
+    # setup tracking variables
+    rewards_log = []
+    curr_episode = 0
+
     # reset environment
+    config_blocks()
     obs, _ = env.reset()
     timestep = 0
     # simulate environment
@@ -182,6 +212,35 @@ def main():
             actions = outputs[-1].get("mean_actions", outputs[0])
             # env stepping
             obs, rewards, terminated, truncated, infos = env.step(actions)
+
+            if truncated.any():
+                # log old blocks
+                adversary_action_old = get_env().adversary_action
+                for i in range(len(rewards)):
+                    rewards_log.append([
+                        round(float(adversary_action_old[i,0]), 5),
+                        round(float(adversary_action_old[i,1]), 5),
+                        round(float(adversary_action_old[i,2]), 5),
+                        round(float(rewards[i]), 5)
+                    ])
+                
+                # update tracking variables
+                curr_episode += 1
+                if max_episodes >= 0:
+                    print(f"Episode finished: {curr_episode}/{max_episodes}")
+
+                # terminate program if over max episodes
+                if curr_episode >= max_episodes and max_episodes >= 0:
+                    with open(os.path.join(RESULT_FOLDER, result_filename), 'w') as json_file:
+                        json.dump(rewards_log, json_file)
+                    exit()
+                
+                # reset SKRL environment and set new blocks
+                # this is a hack, without it the _reset_once field prevents proper resetting
+                env._reset_once = True
+                config_blocks()
+                obs, _ = env.reset()
+
         if args_cli.video:
             timestep += 1
             # exit the play loop after recording one video

@@ -54,9 +54,9 @@ objects_cfg = [
 def define_objects(origin, idx):
     obj_cfg = objects_cfg[idx % len(objects_cfg)]
     pos = [
-        origin[0] + random.uniform(-0.1, 0.1),
-        origin[1] + random.uniform(-0.25, 0.25),
-        origin[2] + random.uniform(0.2, 0.5),
+        origin[0],
+        origin[1],
+        origin[2],
     ]
 
     return RigidObjectCfg(
@@ -130,12 +130,8 @@ class FrankaCubeLiftClutter2EnvCfg(LiftClutter2EnvCfg):
         )
 
         # Spawn objects
-        self.scene.clutter_object1 = define_objects([0.5, 0, 0], 0)
-        self.scene.clutter_object2 = define_objects([0.5, 0, 0], 1)
-        self.scene.clutter_object3 = define_objects([0.5, 0, 0], 2)
-        self.scene.clutter_object4 = define_objects([0.5, 0, 0], 3)
-        self.scene.clutter_object5 = define_objects([0.5, 0, 0], 4)
-        self.scene.clutter_object6 = define_objects([0.5, 0, 0], 5)
+        for i in range(self.num_clutter_objects):
+            setattr(self.scene, f"clutter_object{i+1}", define_objects([0.5, 0, 0], i))
 
         # Change some settings
         self.episode_length_s = 6.0

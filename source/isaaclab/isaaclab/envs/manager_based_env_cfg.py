@@ -38,7 +38,10 @@ class ManagerBasedEnvCfg:
     """Base configuration of the environment."""
 
     # simulation settings
-    viewer: ViewerCfg = ViewerCfg()
+    viewer: ViewerCfg = ViewerCfg(
+        eye=(3, 0, 5),
+        lookat=(0.5, 0, 0)
+    )
     """Viewer configuration. Default is ViewerCfg()."""
 
     sim: SimulationCfg = SimulationCfg()

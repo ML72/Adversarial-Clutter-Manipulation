@@ -12,14 +12,14 @@ from . import agents
 ##
 
 ##
-# Joint Position Control
+# Simple Adversarial Joint Position Control
 ##
 
 gym.register(
-    id="Isaac-Lift-Cube-Franka-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    id="Isaac-Lift-Cube-Franka-Simple-v0",
+    entry_point="isaaclab.envs:AdversarialManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.joint_pos_env_cfg:FrankaCubeLiftEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.joint_pos_simple_env_cfg:FrankaCubeLiftSimpleEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:LiftCubePPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
@@ -29,10 +29,10 @@ gym.register(
 )
 
 gym.register(
-    id="Isaac-Lift-Cube-Franka-Play-v0",
+    id="Isaac-Lift-Cube-Franka-Simple-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.joint_pos_env_cfg:FrankaCubeLiftEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.joint_pos_simple_env_cfg:FrankaCubeLiftSimpleEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:LiftCubePPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",

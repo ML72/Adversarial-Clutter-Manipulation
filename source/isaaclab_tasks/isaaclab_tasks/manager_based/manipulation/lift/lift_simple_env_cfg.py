@@ -40,7 +40,6 @@ box_width = 0.9144
 box_height = 0.3048
 thickness = 0.0010
 
-num_clutter_objects = 6
 
 @configclass
 class ObjectTableSceneCfg(InteractiveSceneCfg):
@@ -130,10 +129,6 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=3000.0),
     )
 
-    def __post_init__(self):
-        """Initialize with a variable number of clutter objects."""
-        for i in range(num_clutter_objects):
-            setattr(self, f"clutter_object{i+1}", MISSING)
 
 ##
 # MDP settings
@@ -182,12 +177,6 @@ class ObservationsCfg:
             self.enable_corruption = True
             self.concatenate_terms = True
 
-            """Initialize with a variable number of clutter objects."""
-            for i in range(num_clutter_objects):
-                clutter_pos = ObsTerm(func=mdp.clutter_position_in_robot_root_frame, params={
-                    "object_cfg": SceneEntityCfg(f"clutter_object{i+1}")
-                })
-                setattr(self, f"clutter_position{i+1}", clutter_pos)
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
@@ -199,28 +188,8 @@ class EventCfg:
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
 
-    reset_object_position = EventTerm(
-        func=mdp.reset_root_state_uniform,
-        mode="reset",
-        params={
-            "pose_range": {"x": (-0.1, 0.1), "y": (-0.25, 0.25), "z": (0.0, 0.0)},
-            "velocity_range": {},
-            "asset_cfg": SceneEntityCfg("object", body_names="Object"),
-        },
-    )
-
-    def __post_init__(self):
-        for i in range(num_clutter_objects):
-            clutter_pos = EventTerm(
-                func=mdp.reset_root_state_uniform,
-                mode="reset",
-                params={
-                    "pose_range": {"x": (-0.1, 0.1), "y": (-0.2, 0.2), "z": (0.0, 0.0)},
-                    "velocity_range": {},
-                    "asset_cfg": SceneEntityCfg(f"clutter_object{i+1}", body_names=f"Clutter{format(i, '02d')}"),
-                },
-            )
-            setattr(self, f"reset_clutter_position{i+1}", clutter_pos)
+    # Note that objects are not reset here anymore, see adversarial_manager_based_rl_env.py
+    # reset_object_position = EventTerm(...)
 
 
 
@@ -235,13 +204,13 @@ class RewardsCfg:
     object_goal_tracking = RewTerm(
         func=mdp.object_goal_distance,
         params={"std": 0.3, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=64.0,
+        weight=16.0,
     )
 
     object_goal_tracking_fine_grained = RewTerm(
         func=mdp.object_goal_distance,
         params={"std": 0.05, "minimal_height": 0.04, "command_name": "object_pose"},
-        weight=20.0,
+        weight=5.0,
     )
 
     # action penalty
@@ -284,7 +253,7 @@ class CurriculumCfg:
 
 
 @configclass
-class LiftClutter2EnvCfg(AdversarialManagerBasedRLEnvCfg):
+class LiftSimpleEnvCfg(AdversarialManagerBasedRLEnvCfg):
     """Configuration for the lifting environment."""
 
     # Scene settings
@@ -304,8 +273,8 @@ class LiftClutter2EnvCfg(AdversarialManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.episode_length_s = 5.0
-        self.num_clutter_objects = num_clutter_objects
-        
+        self.num_clutter_objects = 0
+
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
         self.sim.render_interval = self.decimation
