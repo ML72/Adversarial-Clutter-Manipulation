@@ -1,0 +1,108 @@
+[project]
+name = "skrl"
+version = "1.4.3"
+description = "Modular and flexible library for reinforcement learning on PyTorch and JAX"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT License"}
+authors = [
+  {name = "Toni-SM"},
+]
+maintainers = [
+  {name = "Toni-SM"},
+]
+keywords = ["reinforcement-learning", "machine-learning", "reinforcement", "machine", "learning", "rl"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+# dependencies / optional-dependencies
+dependencies = [
+  "gymnasium",
+  "packaging",
+  "tensorboard",
+  "tqdm",
+]
+[project.optional-dependencies]
+torch = [
+  "torch>=1.10",
+]
+jax = [
+  "jax>=0.4.31",
+  "jaxlib>=0.4.31",
+  "flax>=0.9.0",
+  "optax",
+]
+all = [
+  "torch>=1.10",
+  "jax>=0.4.31",
+  "jaxlib>=0.4.31",
+  "flax>=0.9.0",
+  "optax",
+]
+tests = [
+  "pytest",
+  "pytest-html",
+  "pytest-cov",
+  "hypothesis",
+]
+# urls
+[project.urls]
+"Homepage" = "https://github.com/Toni-SM/skrl"
+"Documentation" = "https://skrl.readthedocs.io"
+"Discussions" = "https://github.com/Toni-SM/skrl/discussions"
+"Bug Reports" = "https://github.com/Toni-SM/skrl/issues"
+"Say Thanks!" = "https://github.com/Toni-SM"
+"Source" = "https://github.com/Toni-SM/skrl"
+
+
+[tool.black]
+line-length = 120
+extend-exclude = """
+(
+  ^/docs
+)
+"""
+
+
+[tool.codespell]
+# run: codespell <folder>
+skip = "./docs/source/_static,./docs/_build,pyproject.toml"
+quiet-level = 3
+count = true
+
+
+[tool.isort]
+profile = "black"
+line_length = 120
+lines_after_imports = 2
+known_test = [
+  "warnings",
+  "hypothesis",
+  "pytest",
+]
+known_annotation = ["typing"]
+known_framework = [
+  "torch",
+  "jax",
+  "jaxlib",
+  "flax",
+  "optax",
+  "numpy",
+]
+sections = [
+  "FUTURE",
+  "ANNOTATION",
+  "TEST",
+  "STDLIB",
+  "THIRDPARTY",
+  "FRAMEWORK",
+  "FIRSTPARTY",
+  "LOCALFOLDER",
+]
+no_lines_before = "THIRDPARTY"
+skip = ["docs"]

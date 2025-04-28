@@ -1,0 +1,14 @@
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand --name simple_domainrand_1 --seed 1
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrand_1/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrand_1.json --headless
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand_restricted --name simple_domainrandrestrict_1 --seed 1
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrandrestrict_1/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrandrestrict_1.json --headless
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand --name simple_domainrand_2 --seed 2
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrand_2/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrand_2.json --headless
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand_restricted --name simple_domainrandrestrict_2 --seed 2
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrandrestrict_2/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrandrestrict_2.json --headless
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand --name simple_domainrand_3 --seed 3
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrand_3/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrand_3.json --headless
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand_restricted --name simple_domainrandrestrict_3 --seed 3
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrandrestrict_3/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrandrestrict_3.json --headless
+
+
