@@ -83,7 +83,7 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
     python scripts/tutorials/00_sim/create_empty.py
     ```
 
-### Part 3: Install Submodule SKRL Version
+### Part 3: Install Custom SKRL Version
 
 1. We want to install our custom SKRL module, which contains adversarial training code. First uninstall the existing version of SKRL:
 
@@ -91,18 +91,13 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
     pip uninstall skrl
     ```
 
-2. Initialize the submodules by running the following commands:
+2. Install the library in editable mode:
 
     ```
-    git submodule update --init --recursive
-    ```
-
-3. Install the submodule in editable mode:
-
-    ```
-    cd submodules/skrl-adv
+    cd libraries/skrl_custom
     pip install -e .["torch"]
     ```
+
 ## Running Experiments
 
 Example train command:

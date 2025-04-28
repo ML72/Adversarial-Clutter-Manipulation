@@ -140,6 +140,7 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # note: certain randomization occur in the environment initialization so we set the seed here
     agent_cfg["seed"] = args_cli.seed if args_cli.seed is not None else agent_cfg["seed"]
     env_cfg.seed = agent_cfg["seed"]
+    print(f"[INFO] Using seed: {env_cfg.seed}")
 
     # write in additional custom parameters
     if hasattr(env_cfg, "positioning_strategy"):
