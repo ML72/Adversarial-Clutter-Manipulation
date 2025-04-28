@@ -138,7 +138,9 @@ class Trainer:
             "value": adversary_shared_model
         }
         adversary_cfg = {
-            "rollouts": 1
+            "rollouts": 1, # update every rollout
+            "learning_starts": 5, # explore a bit more before learning
+            "memory_size": 5 # passed into RandomMemory manually, must be <= learning_starts
         }
 
         self.adversary = PPO(
@@ -146,11 +148,14 @@ class Trainer:
             device=env.device,
             observation_space=self.adversary_num_inputs,
             action_space=num_outputs,
-            memory=RandomMemory(num_envs=self.env.num_envs, memory_size=adversary_cfg["rollouts"], device=env.device),
+            memory=RandomMemory(
+                num_envs=self.env.num_envs,
+                memory_size=adversary_cfg["memory_size"],
+                device=env.device
+            ),
             cfg=adversary_cfg
         )
         self.adversary.init()
-        self.adversary._learning_starts = 5 # explore a bit more before learning
 
         # register environment closing if configured
         if self.close_environment_at_exit:
