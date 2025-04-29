@@ -138,7 +138,9 @@ class Trainer:
             "value": adversary_shared_model
         }
         adversary_cfg = {
-            "rollouts": 1
+            "rollouts": 1, # update every rollout
+            "learning_starts": 5, # explore a bit more before learning
+            "memory_size": 5 # passed into RandomMemory manually, must be <= learning_starts
         }
 
         self.adversary = PPO(
@@ -146,11 +148,14 @@ class Trainer:
             device=env.device,
             observation_space=self.adversary_num_inputs,
             action_space=num_outputs,
-            memory=RandomMemory(num_envs=self.env.num_envs, memory_size=adversary_cfg["rollouts"], device=env.device),
+            memory=RandomMemory(
+                num_envs=self.env.num_envs,
+                memory_size=adversary_cfg["memory_size"],
+                device=env.device
+            ),
             cfg=adversary_cfg
         )
         self.adversary.init()
-        self.adversary._learning_starts = 5 # explore a bit more before learning
 
         # register environment closing if configured
         if self.close_environment_at_exit:
@@ -261,7 +266,6 @@ class Trainer:
         # useful constants
         NUM_ENVS = self.env.num_envs
         ADVERSARY_ACTION_SPACE = self._isaaclab_env().adversary_action.shape[-1]
-        SUCCESS_THRESHOLD = 0.55 # arbitrary threshold for success, does not work for sum of rewards
         MAX_EPISODE_LENGTH = self._isaaclab_env().max_episode_length
 
         # utility function to get an adversary action given the sampling strategy
@@ -279,15 +283,15 @@ class Trainer:
             elif self.positioning_strategy == "domain_rand_restricted":
                 # Randomly sample every action dimension from a subrange smaller than -1 to 1
                 result_action = torch.rand((NUM_ENVS, ADVERSARY_ACTION_SPACE), device=device)
-                result_action[:,0] = result_action[:,0] * 2 - 1 # x direction is stretched
-                result_action[:,1] = result_action[:,1] # y direction is unchaged, [0,1]
+                result_action[:,0] = result_action[:,0] * 2 - 1 # y direction is stretched to range [-1,1]
+                result_action[:,1] = result_action[:,1] # x direction is unchaged, in range [0,1]
             elif self.positioning_strategy == "boosting_adversary":
                 # Boost samples that the agent performs poorly on
                 result_action = torch.rand((NUM_ENVS, ADVERSARY_ACTION_SPACE), device=device) * 2 - 1
                 if timestep > 0:
                     # Perturb and re-learn from past action if agent performed poorly
                     if rewards is not None and prev_action is not None:
-                        mask = rewards < SUCCESS_THRESHOLD
+                        mask = (rewards < rewards.median()).flatten()
                         if torch.sum(mask).item() > 0:
                             result_action[mask] = prev_action[mask] + result_action[mask] * 0.05
             elif self.positioning_strategy == "pure_adversary":
