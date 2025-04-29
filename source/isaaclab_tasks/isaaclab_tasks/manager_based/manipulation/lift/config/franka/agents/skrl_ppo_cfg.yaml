@@ -69,7 +69,7 @@ agent:
     directory: "franka_lift"
     experiment_name: ""
     write_interval: 1000
-    checkpoint_interval: 1000
+    checkpoint_interval: 10000
 
 
 # Sequential trainer
