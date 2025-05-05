@@ -139,8 +139,9 @@ class Trainer:
         }
         adversary_cfg = {
             "rollouts": 1, # update every rollout
-            "learning_starts": 5, # explore a bit more before learning
-            "memory_size": 5 # passed into RandomMemory manually, must be <= learning_starts
+            "learning_starts": 25, # explore a bit more before learning
+            "memory_size": 25, # passed into RandomMemory manually, must be <= learning_starts
+            "learning_rate": 1e-4
         }
 
         self.adversary = PPO(
