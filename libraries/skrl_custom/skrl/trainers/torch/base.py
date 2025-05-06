@@ -143,7 +143,7 @@ class Trainer:
         adversary_memsize = 25 // self.regret_rollouts if self.positioning_strategy == "regret_adversary" else 25
         adversary_cfg = {
             "rollouts": adversary_rollouts, # make it fair
-            "learning_starts": adversary_memsize, # explore a bit more before learning
+            "learning_starts": adversary_memsize - 1, # subtracting 1 because of off-by-1 indexing in SKRL PPO
             "memory_size": adversary_memsize, # passed into RandomMemory manually, must be <= learning_starts
             "learning_rate": 1e-4
         }
@@ -367,7 +367,6 @@ class Trainer:
                     rewards=rewards,
                     prev_action=adversary_action
                 )
-                regret_trials = self.regret_rollouts
                 self._isaaclab_env().adversary_action = adversary_action
 
                 # reset regret trials if applicable
