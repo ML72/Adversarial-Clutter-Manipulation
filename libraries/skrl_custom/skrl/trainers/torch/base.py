@@ -124,10 +124,11 @@ class Trainer:
         self.num_simultaneous_agents = 0
         self._setup_agents()
 
-        # set positioning strategy (have local copy for ease of access)
+        # set local variables
         self.positioning_strategy = self._isaaclab_env().cfg.positioning_strategy
-        self.adversary_active = self.positioning_strategy == "pure_adversary"
+        self.adversary_active = self.positioning_strategy == "pure_adversary" or self.positioning_strategy == "regret_adversary"
         self.log_adversary = "adversary" in self.positioning_strategy
+        self.regret_rollouts = 5
 
         # setup adversary
         self.adversary_num_inputs = 4 # arbitrary number of inputs, is a noise vector to condition on
@@ -137,10 +138,14 @@ class Trainer:
             "policy": adversary_shared_model,
             "value": adversary_shared_model
         }
+
+        adversary_rollouts = 1 if self.positioning_strategy == "regret_adversary" else self.regret_rollouts
+        adversary_memsize = 25 // self.regret_rollouts if self.positioning_strategy == "regret_adversary" else 25
         adversary_cfg = {
-            "rollouts": 1, # update every rollout
-            "learning_starts": 5, # explore a bit more before learning
-            "memory_size": 5 # passed into RandomMemory manually, must be <= learning_starts
+            "rollouts": adversary_rollouts, # make it fair
+            "learning_starts": adversary_memsize - 1, # subtracting 1 because of off-by-1 indexing in SKRL PPO
+            "memory_size": adversary_memsize, # passed into RandomMemory manually, must be <= learning_starts
+            "learning_rate": 1e-4
         }
 
         self.adversary = PPO(
@@ -273,6 +278,7 @@ class Trainer:
             rand_state: torch.Tensor,
             device: torch.device,
             timestep=0,
+            regret_trials=0,
             rewards=None,
             prev_action=None
         ) -> torch.Tensor:
@@ -308,6 +314,23 @@ class Trainer:
                         timestep=((timestep+1) // MAX_EPISODE_LENGTH),
                         timesteps=(self.timesteps // MAX_EPISODE_LENGTH)
                     )[0]
+            elif self.positioning_strategy == "regret_adversary":
+                if regret_trials <= 0:
+                    # Pre interaction for the adversary
+                    self.adversary.pre_interaction(
+                        timestep=((timestep+1) // MAX_EPISODE_LENGTH // self.regret_rollouts),
+                        timesteps=(self.timesteps // MAX_EPISODE_LENGTH // self.regret_rollouts)
+                    )
+
+                    # Choose an action from a purely adversarial network
+                    with torch.no_grad():
+                        result_action = self.adversary.act(
+                            rand_state,
+                            timestep=((timestep+1) // MAX_EPISODE_LENGTH // self.regret_rollouts),
+                            timesteps=(self.timesteps // MAX_EPISODE_LENGTH // self.regret_rollouts)
+                        )[0]
+                else:
+                    result_action = prev_action
             else:
                 raise ValueError(f"Invalid positioning strategy: {self.positioning_strategy}")
             return result_action
@@ -320,6 +343,13 @@ class Trainer:
         self._isaaclab_env().adversary_action = adversary_action
         states, infos = self.env.reset()
 
+        # set up regret adversary state, if applicable
+        regret_trials = self.regret_rollouts - 1
+        max_adversary_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
+        total_adversary_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
+        total_adversary_penalty = torch.zeros((NUM_ENVS, 1), device=self.env.device)
+
+        # start training loop
         adversary_action_log = []
         adversary_reward_log = []
         for timestep in tqdm.tqdm(
@@ -327,15 +357,23 @@ class Trainer:
         ):
             # take next action from adversary if at the end of an episode
             if timestep % MAX_EPISODE_LENGTH == MAX_EPISODE_LENGTH - 1:
-                rand_state = torch.randn((NUM_ENVS, self.adversary_num_inputs), device=self.env.device)
+                if self.positioning_strategy != "regret_adversary" or regret_trials <= 0:
+                    rand_state = torch.randn((NUM_ENVS, self.adversary_num_inputs), device=self.env.device)
                 adversary_action = get_adversary_action(
                     rand_state,
                     self.env.device,
                     timestep=timestep,
+                    regret_trials=regret_trials,
                     rewards=rewards,
                     prev_action=adversary_action
                 )
                 self._isaaclab_env().adversary_action = adversary_action
+
+                # reset regret trials if applicable
+                if self.positioning_strategy == "regret_adversary":
+                    regret_trials -= 1
+                    if regret_trials < 0:
+                        regret_trials += self.regret_rollouts
 
                 # reset episode rewards
                 episode_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
@@ -392,27 +430,52 @@ class Trainer:
                 if self.adversary_active:
                     # update adversary
                     with torch.no_grad():                    
-                        # compute reward
-                        # reward is negative of agent reward
-                        # penalizes for action values outside [-1,1] range
+                        # compute range penalty: penalizes for action values outside [-1,1] range
                         range_penalty = torch.sum(torch.maximum(
                             (adversary_action ** 2) - 1,
                             torch.zeros(adversary_action.shape, device=self.env.device)
                         ), dim=1, keepdim=True)
-                        adversary_rewards = (-1 * episode_rewards) - range_penalty
 
-                        # unsure about assignment of states and next_states
-                        self.adversary.record_transition(
-                            states=rand_state,
-                            actions=adversary_action,
-                            rewards=adversary_rewards,
-                            next_states=rand_state,
-                            terminated=torch.ones(terminated.shape, device=self.env.device),
-                            truncated=torch.ones(truncated.shape, device=self.env.device),
-                            infos={},
-                            timestep=(timestep // MAX_EPISODE_LENGTH),
-                            timesteps=(self.timesteps // MAX_EPISODE_LENGTH),
-                        )
+                        # compute reward, split by cases for different agents
+                        if self.positioning_strategy == "regret_adversary":
+                            adversary_rewards = (-1 * episode_rewards) # - range_penalty
+
+                            # update regret adversary state
+                            if regret_trials >= self.regret_rollouts - 1:
+                                max_adversary_rewards = adversary_rewards.clone()
+                            else:
+                                max_adversary_rewards = torch.maximum(max_adversary_rewards, adversary_rewards)
+                            total_adversary_rewards += adversary_rewards
+                            total_adversary_penalty += range_penalty
+
+                            # unsure about assignment of states and next_states
+                            if regret_trials <= 0:
+                                mean_adversary_rewards = total_adversary_rewards / self.regret_rollouts
+                                mean_adversary_penalty = total_adversary_penalty / self.regret_rollouts
+                                self.adversary.record_transition(
+                                    states=rand_state,
+                                    actions=adversary_action,
+                                    rewards=(max_adversary_rewards - mean_adversary_rewards - mean_adversary_penalty),
+                                    next_states=rand_state,
+                                    terminated=torch.ones(terminated.shape, device=self.env.device),
+                                    truncated=torch.ones(truncated.shape, device=self.env.device),
+                                    infos={},
+                                    timestep=(timestep // MAX_EPISODE_LENGTH // self.regret_rollouts),
+                                    timesteps=(self.timesteps // MAX_EPISODE_LENGTH // self.regret_rollouts),
+                                )
+                        else:
+                            adversary_rewards = (-1 * episode_rewards) - range_penalty
+                            self.adversary.record_transition(
+                                states=rand_state,
+                                actions=adversary_action,
+                                rewards=adversary_rewards,
+                                next_states=rand_state,
+                                terminated=torch.ones(terminated.shape, device=self.env.device),
+                                truncated=torch.ones(truncated.shape, device=self.env.device),
+                                infos={},
+                                timestep=(timestep // MAX_EPISODE_LENGTH),
+                                timesteps=(self.timesteps // MAX_EPISODE_LENGTH),
+                            )
 
                         # log adversary data as necessary
                         if self.log_adversary:
@@ -420,10 +483,21 @@ class Trainer:
                             adversary_reward_log.append(adversary_rewards.flatten().cpu().numpy())
 
                     # adversary post interaction
-                    self.adversary.post_interaction(
-                        timestep=(timestep // MAX_EPISODE_LENGTH),
-                        timesteps=(self.timesteps // MAX_EPISODE_LENGTH)
-                    )
+                    if self.positioning_strategy == "regret_adversary":
+                        if regret_trials <= 0:
+                            self.adversary.post_interaction(
+                                timestep=(timestep // MAX_EPISODE_LENGTH // self.regret_rollouts),
+                                timesteps=(self.timesteps // MAX_EPISODE_LENGTH // self.regret_rollouts)
+                            )
+
+                            max_adversary_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
+                            total_adversary_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
+                            total_adversary_penalty = torch.zeros((NUM_ENVS, 1), device=self.env.device)
+                    else:
+                        self.adversary.post_interaction(
+                            timestep=(timestep // MAX_EPISODE_LENGTH),
+                            timesteps=(self.timesteps // MAX_EPISODE_LENGTH)
+                        )
 
         # dump adversary logs
         if self.log_adversary:
