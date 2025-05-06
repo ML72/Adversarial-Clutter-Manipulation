@@ -344,7 +344,7 @@ class Trainer:
         states, infos = self.env.reset()
 
         # set up regret adversary state, if applicable
-        regret_trials = self.regret_rollouts
+        regret_trials = self.regret_rollouts - 1
         max_adversary_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
         total_adversary_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
         total_adversary_penalty = torch.zeros((NUM_ENVS, 1), device=self.env.device)
@@ -357,7 +357,8 @@ class Trainer:
         ):
             # take next action from adversary if at the end of an episode
             if timestep % MAX_EPISODE_LENGTH == MAX_EPISODE_LENGTH - 1:
-                rand_state = torch.randn((NUM_ENVS, self.adversary_num_inputs), device=self.env.device)
+                if self.positioning_strategy != "regret_adversary" or regret_trials <= 0:
+                    rand_state = torch.randn((NUM_ENVS, self.adversary_num_inputs), device=self.env.device)
                 adversary_action = get_adversary_action(
                     rand_state,
                     self.env.device,
