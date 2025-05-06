@@ -50,7 +50,7 @@ parser.add_argument(
     "--positioning",
     type=str,
     default="domain_rand",
-    choices=["domain_rand", "domain_rand_restricted", "boosting_adversary", "pure_adversary"],
+    choices=["domain_rand", "domain_rand_restricted", "boosting_adversary", "pure_adversary", "regret_adversary"],
     help="Positioning of the objects in the environment."
 )
 
