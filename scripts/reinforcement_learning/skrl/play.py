@@ -216,12 +216,14 @@ def main():
             if truncated.any():
                 # log old blocks
                 adversary_action_old = get_env().adversary_action
+                success_map = infos["log"]["success_map"]
                 for i in range(len(rewards)):
                     rewards_log.append([
                         round(float(adversary_action_old[i,0]), 5),
                         round(float(adversary_action_old[i,1]), 5),
                         round(float(adversary_action_old[i,2]), 5),
-                        round(float(rewards[i]), 5)
+                        round(float(rewards[i]), 5),
+                        int(success_map[i])
                     ])
                 
                 # update tracking variables
