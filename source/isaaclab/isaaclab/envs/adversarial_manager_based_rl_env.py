@@ -137,6 +137,30 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
         super()._reset_idx(env_ids)
         self.adversarial_reset(env_ids)
 
+        # import environment types
+        # have to do it here and not at the top to avoid circular imports
+        from isaaclab_tasks.manager_based.manipulation.lift.config.franka.joint_pos_simple_env_cfg import FrankaCubeLiftSimpleEnvCfg
+
+        # compute task-specific success rate
+        if type(self.cfg) == FrankaCubeLiftSimpleEnvCfg:
+            # these weights are *manually set* to align with the reward weights in the simple environment
+            SUCCESS_THRESHOLDS = {
+                "Last_Reward/reaching_object": 0.01, # max 0.0199
+                "Last_Reward/lifting_object": 0.29, # max 0.3000
+                "Last_Reward/object_goal_tracking": 0.2, # max 0.3182
+                "Last_Reward/object_goal_tracking_fine_grained": 0.01 # max 0.0967
+            }
+            successes = None
+            for threshold_name, threshold in SUCCESS_THRESHOLDS.items():
+                last_reward = self.extras['log'][threshold_name][env_ids]
+                if successes is None:
+                    successes = last_reward > threshold
+                else:
+                    successes = torch.logical_and(successes, last_reward > threshold)
+            success_rate = torch.mean(successes.float())
+            self.extras['log']["success_map"] = successes
+            self.extras['log']["success_rate"] = success_rate
+
     def adversarial_reset(self, reset_env_ids: Sequence[int]) -> tuple[VecEnvObs, dict]:
         """Reset the environment.
 

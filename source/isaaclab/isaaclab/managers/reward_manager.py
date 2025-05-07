@@ -54,10 +54,17 @@ class RewardManager(ManagerBase):
 
         # call the base class constructor (this will parse the terms config)
         super().__init__(cfg, env)
+
         # prepare extra info to store individual reward term information
         self._episode_sums = dict()
         for term_name in self._term_names:
             self._episode_sums[term_name] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        
+        # prepare extra info to store last reward term information
+        self._last_episode = dict()
+        for term_name in self._term_names:
+            self._last_episode[term_name] = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        
         # create buffer for managing reward per environment
         self._reward_buf = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
 
@@ -110,15 +117,20 @@ class RewardManager(ManagerBase):
         # resolve environment ids
         if env_ids is None:
             env_ids = slice(None)
+        
         # store information
         extras = {}
         for key in self._episode_sums.keys():
-            # store information
+            # store episode sum information
             # r_1 + r_2 + ... + r_n
             episodic_sum_avg = torch.mean(self._episode_sums[key][env_ids])
             extras["Episode_Reward/" + key] = episodic_sum_avg / self._env.max_episode_length_s
             # reset episodic sum
             self._episode_sums[key][env_ids] = 0.0
+
+            # store last episode information
+            extras["Last_Reward/" + key] = self._last_episode[key][env_ids]
+        
         # reset all the reward terms
         for term_cfg in self._class_term_cfgs:
             term_cfg.func.reset(env_ids=env_ids)
@@ -150,6 +162,8 @@ class RewardManager(ManagerBase):
             self._reward_buf += value
             # update episodic sum
             self._episode_sums[name] += value
+            # update last episode
+            self._last_episode[name] = value
 
             # Update current reward for this step.
             self._step_reward[:, self._term_names.index(name)] = value / dt

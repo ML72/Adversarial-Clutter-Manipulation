@@ -127,7 +127,7 @@ class Trainer:
         # set local variables
         self.positioning_strategy = self._isaaclab_env().cfg.positioning_strategy
         self.adversary_active = self.positioning_strategy == "pure_adversary" or self.positioning_strategy == "regret_adversary"
-        self.log_adversary = "adversary" in self.positioning_strategy
+        self.log_training = True
         self.regret_rollouts = 5
 
         # setup adversary
@@ -352,6 +352,7 @@ class Trainer:
         # start training loop
         adversary_action_log = []
         adversary_reward_log = []
+        protagonist_successmap_log = []
         for timestep in tqdm.tqdm(
             range(self.initial_timestep, self.timesteps), disable=self.disable_progressbar, file=sys.stdout
         ):
@@ -477,11 +478,6 @@ class Trainer:
                                 timesteps=(self.timesteps // MAX_EPISODE_LENGTH),
                             )
 
-                        # log adversary data as necessary
-                        if self.log_adversary:
-                            adversary_action_log.append(adversary_action.cpu().numpy())
-                            adversary_reward_log.append(adversary_rewards.flatten().cpu().numpy())
-
                     # adversary post interaction
                     if self.positioning_strategy == "regret_adversary":
                         if regret_trials <= 0:
@@ -498,10 +494,22 @@ class Trainer:
                             timestep=(timestep // MAX_EPISODE_LENGTH),
                             timesteps=(self.timesteps // MAX_EPISODE_LENGTH)
                         )
+                
+                # log adversary data as necessary
+                if self.log_training:
+                    adversary_action_log.append(adversary_action.cpu().numpy())
+                    if self.adversary_active:
+                        adversary_reward_log.append(adversary_rewards.flatten().cpu().numpy())
+
+            # post-episode cleanup for adversary
+            if timestep % MAX_EPISODE_LENGTH == MAX_EPISODE_LENGTH - 1:
+                # log protagonist reward data as necessary
+                if self.log_training:
+                    protagonist_successmap_log.append(infos["log"]["success_map"].cpu().numpy())
 
         # dump adversary logs
-        if self.log_adversary:
-            RESULT_DIR = os.path.join(self.agents.experiment_dir, "adversary_logs")
+        if self.log_training:
+            RESULT_DIR = os.path.join(self.agents.experiment_dir, "training_logs")
             os.makedirs(RESULT_DIR, exist_ok=True)
 
             # dump adversary log to .npy file
@@ -513,6 +521,11 @@ class Trainer:
             adversary_reward_log = np.array(adversary_reward_log)
             np.save(os.path.join(RESULT_DIR, "adversary_reward_log.npy"), adversary_reward_log)
             logger.info("Adversary reward log dumped to file")
+
+            # dump protagonist successmap log to .npy file
+            protagonist_successmap_log = np.array(protagonist_successmap_log)
+            np.save(os.path.join(RESULT_DIR, "protagonist_successmap_log.npy"), protagonist_successmap_log)
+            logger.info("Protagonist successmap log dumped to file")
 
 
     def single_agent_eval(self) -> None:
