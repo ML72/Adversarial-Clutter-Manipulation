@@ -32,13 +32,13 @@ class ObjectTableCameraSceneCfg(ObjectTableSceneCfg):
     # add camera to the scene
     tiled_camera: TiledCameraCfg = TiledCameraCfg(
         prim_path="{ENV_REGEX_NS}/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=(-7.0, 0.0, 3.0), rot=(0.9945, 0.0, 0.1045, 0.0), convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.5, 0.0, 2.0), rot=(0.9945, 0.0, 0.1045, 0.0), convention="opengl"),
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
         ),
-        width=100,
-        height=100,
+        width=200,
+        height=200,
     )
 
 
@@ -82,5 +82,5 @@ class LiftSimpleCameraEnvCfg(LiftSimpleEnvCfg):
         self.scene.ground = None
 
         # viewer settings
-        #self.viewer.eye = (7.0, 0.0, 2.5)
-        #self.viewer.lookat = (0.0, 0.0, 2.5)
+        self.viewer.eye = (7.0, 0.0, 2.5)
+        self.viewer.lookat = (0.0, 0.0, 2.5)
