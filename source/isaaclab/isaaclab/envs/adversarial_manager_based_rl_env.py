@@ -140,9 +140,11 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
         # import environment types
         # have to do it here and not at the top to avoid circular imports
         from isaaclab_tasks.manager_based.manipulation.lift.config.franka.joint_pos_simple_env_cfg import FrankaCubeLiftSimpleEnvCfg
+        from isaaclab_tasks.manager_based.manipulation.lift.config.franka.joint_pos_simplecamera_env_cfg import FrankaCubeLiftSimpleCameraEnvCfg
 
         # compute task-specific success rate
-        if type(self.cfg) == FrankaCubeLiftSimpleEnvCfg:
+        accepted_types = [FrankaCubeLiftSimpleEnvCfg, FrankaCubeLiftSimpleCameraEnvCfg]
+        if type(self.cfg) in accepted_types:
             # these weights are *manually set* to align with the reward weights in the simple environment
             SUCCESS_THRESHOLDS = {
                 "Last_Reward/reaching_object": 0.01, # max 0.0199
