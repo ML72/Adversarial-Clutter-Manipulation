@@ -392,7 +392,7 @@ class Trainer:
                 # update episode rewards
                 # skip reward from last episode
                 if timestep % MAX_EPISODE_LENGTH != MAX_EPISODE_LENGTH - 1:
-                    episode_rewards += rewards
+                    episode_rewards = 0.98 * episode_rewards + rewards # Discount rewards
 
                 # render scene
                 if not self.headless:
@@ -439,7 +439,7 @@ class Trainer:
 
                         # compute reward, split by cases for different agents
                         if self.positioning_strategy == "regret_adversary":
-                            adversary_rewards = (-1 * episode_rewards) # - range_penalty
+                            adversary_rewards = (-1 * episode_rewards)
 
                             # update regret adversary state
                             if regret_trials >= self.regret_rollouts - 1:
