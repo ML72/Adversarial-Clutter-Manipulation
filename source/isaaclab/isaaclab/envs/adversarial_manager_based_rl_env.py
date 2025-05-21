@@ -172,6 +172,11 @@ class AdversarialManagerBasedRLEnv(ManagerBasedRLEnv):
         adversary_pos = self.adversary_action[reset_env_ids]
         adversary_pos = torch.clamp(adversary_pos, -1, 1)
 
+        # Reset command manager object pose
+        target_object_pose = torch.tensor([0.5, 0, 0.35, 1, 0, 0, 0]).to(self.device)
+        self.command_manager._terms["object_pose"].pose_command_b[:] = target_object_pose
+
+        # Reset clutter object positions adversarially
         for asset_name, rigid_object in self.scene._rigid_objects.items():
             # catch both "object" and "clutter_object<i>"
             if "object" in asset_name: 

@@ -16,4 +16,8 @@ class AdversarialManagerBasedRLEnvCfg(ManagerBasedRLEnvCfg):
 
     num_clutter_objects: int = MISSING
 
-    positioning_strategy: str = "<CHANGE_THIS_STRATEGY>" # Set this for training, does not matter for evaluation
+    # Set these for training, does not matter for evaluation
+    positioning_strategy: str = "domain_rand"
+    train_mode: str = "train"
+    train_actions_path: str | None = None
+    train_positions_path: str | None = None # Not currently used
