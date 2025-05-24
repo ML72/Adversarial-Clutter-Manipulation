@@ -130,6 +130,19 @@ class Trainer:
         self.log_training = True
         self.regret_rollouts = 5
 
+        self.train_mode = self._isaaclab_env().cfg.train_mode
+        self.train_actions_path = self._isaaclab_env().cfg.train_actions_path
+        self.train_positions_path = self._isaaclab_env().cfg.train_positions_path
+
+        # disable learning for agent if we are just collecting data
+        if self.train_mode == "bc_datacollect" or self.train_mode == "bc_train":
+            self.agents._learning_starts = self.timesteps + 1
+        if self.train_mode == "bc_train":
+            self.agent_policy = self.agents.policy
+            self.agent_optimizer = self.agents.optimizer
+            self.agent_scaler = self.agents.scaler
+            self._grad_norm_clip = self.agents._grad_norm_clip
+        
         # setup adversary
         self.adversary_num_inputs = 4 # arbitrary number of inputs, is a noise vector to condition on
         num_outputs = (self._isaaclab_env().num_clutter_objects + 1) * 3 # clutter + main object
@@ -280,10 +293,15 @@ class Trainer:
             timestep=0,
             regret_trials=0,
             rewards=None,
-            prev_action=None
+            prev_action=None,
+            bc_positions=None
         ) -> torch.Tensor:
             result_action = None
-            if self.positioning_strategy == "domain_rand":
+            if self.train_mode == "bc_train":
+                # Behavior cloning, use previous positions
+                assert bc_positions is not None, "Behavior cloning positions are not provided"
+                result_action = torch.from_numpy(bc_positions[(timestep+1) // MAX_EPISODE_LENGTH]).to(device)
+            elif self.positioning_strategy == "domain_rand":
                 # Randomly sample every action dimension from -1 to 1
                 result_action = torch.rand((NUM_ENVS, ADVERSARY_ACTION_SPACE), device=device) * 2 - 1
             elif self.positioning_strategy == "domain_rand_restricted":
@@ -335,9 +353,12 @@ class Trainer:
                 raise ValueError(f"Invalid positioning strategy: {self.positioning_strategy}")
             return result_action
 
+        # initialize bc positions if applicable
+        bc_positions = np.load(self.train_positions_path) if self.train_mode == "bc_train" else None
+
         # reset env
         rand_state = torch.randn((NUM_ENVS, self.adversary_num_inputs), device=self.env.device)
-        adversary_action = get_adversary_action(rand_state, self.env.device, timestep=0)
+        adversary_action = get_adversary_action(rand_state, self.env.device, timestep=0, bc_positions=bc_positions)
         episode_rewards = torch.zeros((NUM_ENVS, 1), device=self.env.device)
 
         self._isaaclab_env().adversary_action = adversary_action
@@ -353,9 +374,14 @@ class Trainer:
         adversary_action_log = []
         adversary_reward_log = []
         protagonist_successmap_log = []
+        protagonist_action_buffer = []
         for timestep in tqdm.tqdm(
             range(self.initial_timestep, self.timesteps), disable=self.disable_progressbar, file=sys.stdout
         ):
+            # reset buffer at start of episode if we are behavior cloning expert actions
+            if timestep % MAX_EPISODE_LENGTH == 0 and self.train_mode == "bc_train":
+                protagonist_action_buffer = np.load(os.path.join(self.train_actions_path, f"protagonist_action_log_{timestep // MAX_EPISODE_LENGTH}.npy"))
+
             # take next action from adversary if at the end of an episode
             if timestep % MAX_EPISODE_LENGTH == MAX_EPISODE_LENGTH - 1:
                 if self.positioning_strategy != "regret_adversary" or regret_trials <= 0:
@@ -366,7 +392,8 @@ class Trainer:
                     timestep=timestep,
                     regret_trials=regret_trials,
                     rewards=rewards,
-                    prev_action=adversary_action
+                    prev_action=adversary_action,
+                    bc_positions=bc_positions
                 )
                 self._isaaclab_env().adversary_action = adversary_action
 
@@ -382,34 +409,69 @@ class Trainer:
             # pre-interaction
             self.agents.pre_interaction(timestep=timestep, timesteps=self.timesteps)
 
-            with torch.no_grad():
-                # compute actions
+            if self.train_mode == "bc_train":
+                # case 1: behavior cloning, use expert actions
                 actions = self.agents.act(states, timestep=timestep, timesteps=self.timesteps)[0]
 
                 # step the environments
-                next_states, rewards, terminated, truncated, infos = self.env.step(actions)
+                bc_actions = torch.from_numpy(protagonist_action_buffer[timestep % MAX_EPISODE_LENGTH]).to(self.env.device)
+                with torch.no_grad():
+                    next_states, rewards, terminated, truncated, infos = self.env.step(bc_actions)
                 
-                # update episode rewards
-                # skip reward from last episode
-                if timestep % MAX_EPISODE_LENGTH != MAX_EPISODE_LENGTH - 1:
-                    episode_rewards = 0.98 * episode_rewards + rewards # Discount rewards
+                    # update episode rewards
+                    # skip reward from last episode
+                    if timestep % MAX_EPISODE_LENGTH != MAX_EPISODE_LENGTH - 1:
+                        episode_rewards = 0.98 * episode_rewards + rewards # Discount rewards
 
-                # render scene
-                if not self.headless:
-                    self.env.render()
+                    # render scene
+                    if not self.headless:
+                        self.env.render()
 
-                # record the environments' transitions
-                self.agents.record_transition(
-                    states=states,
-                    actions=actions,
-                    rewards=rewards,
-                    next_states=next_states,
-                    terminated=terminated,
-                    truncated=truncated,
-                    infos=infos,
-                    timestep=timestep,
-                    timesteps=self.timesteps,
-                )
+                # optimization step
+                bc_loss = torch.mean((bc_actions - actions) ** 2)
+                self.agents.track_data("Loss / BC MSE Loss", bc_loss.item())
+                
+                self.agent_optimizer.zero_grad()
+                self.agent_scaler.scale(bc_loss).backward()
+
+                if self._grad_norm_clip > 0:
+                    self.agent_scaler.unscale_(self.agent_optimizer)
+                    nn.utils.clip_grad_norm_(self.agent_policy.parameters(), self._grad_norm_clip)
+
+                self.agent_scaler.step(self.agent_optimizer)
+                self.agent_scaler.update()
+            else:
+                # case 2: not behavior cloning, use RL
+                with torch.no_grad():
+                    # compute actions
+                    actions = self.agents.act(states, timestep=timestep, timesteps=self.timesteps)[0]
+                    if self.train_mode == "bc_datacollect":
+                        protagonist_action_buffer.append(actions.cpu().numpy())
+
+                    # step the environments
+                    next_states, rewards, terminated, truncated, infos = self.env.step(actions)
+                    
+                    # update episode rewards
+                    # skip reward from last episode
+                    if timestep % MAX_EPISODE_LENGTH != MAX_EPISODE_LENGTH - 1:
+                        episode_rewards = 0.98 * episode_rewards + rewards # Discount rewards
+
+                    # render scene
+                    if not self.headless:
+                        self.env.render()
+
+                    # record the environments' transitions
+                    self.agents.record_transition(
+                        states=states,
+                        actions=actions,
+                        rewards=rewards,
+                        next_states=next_states,
+                        terminated=terminated,
+                        truncated=truncated,
+                        infos=infos,
+                        timestep=timestep,
+                        timesteps=self.timesteps,
+                    )
 
                 # log environment info
                 if self.environment_info in infos:
@@ -501,11 +563,20 @@ class Trainer:
                     if self.adversary_active:
                         adversary_reward_log.append(adversary_rewards.flatten().cpu().numpy())
 
-            # post-episode cleanup for adversary
+            # post-episode cleanup
             if timestep % MAX_EPISODE_LENGTH == MAX_EPISODE_LENGTH - 1:
                 # log protagonist reward data as necessary
                 if self.log_training:
                     protagonist_successmap_log.append(infos["log"]["success_map"].cpu().numpy())
+            
+                # dump protagonist action log to .npy file at end of every episode
+                if self.train_mode == "bc_datacollect":
+                    RESULT_DIR = os.path.join(self.agents.experiment_dir, "training_logs", "bc_actions")
+                    os.makedirs(RESULT_DIR, exist_ok=True)
+
+                    protagonist_action_buffer = np.array(protagonist_action_buffer)
+                    np.save(os.path.join(RESULT_DIR, f"protagonist_action_log_{timestep // MAX_EPISODE_LENGTH}.npy"), protagonist_action_buffer)
+                    protagonist_action_buffer = []
 
         # dump adversary logs
         if self.log_training:

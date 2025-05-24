@@ -54,6 +54,26 @@ parser.add_argument(
     help="Positioning of the objects in the environment."
 )
 
+parser.add_argument(
+    "--train_mode",
+    type=str,
+    default="train",
+    choices=["train", "bc_datacollect", "bc_train"],
+    help="Running mode to execute in."
+)
+parser.add_argument(
+    "--train_actions_path",
+    type=str,
+    default=None,
+    help="Folder path of actions."
+)
+parser.add_argument(
+    "--train_positions_path",
+    type=str,
+    default=None,
+    help="Folder path of positions."
+)
+
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 # parse the arguments
@@ -145,6 +165,12 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # write in additional custom parameters
     if hasattr(env_cfg, "positioning_strategy"):
         env_cfg.positioning_strategy = args_cli.positioning
+    if hasattr(env_cfg, "train_mode"):
+        env_cfg.train_mode = args_cli.train_mode
+    if hasattr(env_cfg, "train_actions_path"):
+        env_cfg.train_actions_path = args_cli.train_actions_path
+    if hasattr(env_cfg, "train_positions_path"):
+        env_cfg.train_positions_path = args_cli.train_positions_path
 
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "skrl", agent_cfg["agent"]["experiment"]["directory"])

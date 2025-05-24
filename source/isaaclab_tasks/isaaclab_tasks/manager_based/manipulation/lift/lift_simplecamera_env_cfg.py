@@ -32,7 +32,7 @@ class ObjectTableCameraSceneCfg(ObjectTableSceneCfg):
     # add camera to the scene
     tiled_camera: TiledCameraCfg = TiledCameraCfg(
         prim_path="{ENV_REGEX_NS}/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=(0.5, 0.0, 2.0), rot=(0.9945, 0.0, 0.1045, 0.0), convention="opengl"),
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.6, 0.0, 1.4), rot=(0.9945, 0.0, 0.1045, 0.0), convention="opengl"),
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 20.0)
