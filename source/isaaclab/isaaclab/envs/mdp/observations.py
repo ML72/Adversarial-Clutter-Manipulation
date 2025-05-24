@@ -475,7 +475,9 @@ class image_features(ManagerTermBase):
             }
 
             # load the model
-            model = getattr(models, model_name)(weights=resnet_weights[model_name]).eval()
+            model = getattr(models, model_name)(weights=resnet_weights[model_name])
+            model = torch.nn.Sequential(*list(model.children())[:-1]) # remove FC layer at end
+            model = model.eval()
             return model.to(model_device)
 
         def _inference(model, images: torch.Tensor) -> torch.Tensor:
@@ -498,7 +500,7 @@ class image_features(ManagerTermBase):
             image_proc = (image_proc - mean) / std
 
             # forward the image through the model
-            return model(image_proc)
+            return model(image_proc).squeeze()
 
         # return the model, preprocess and inference functions
         return {"model": _load_model, "inference": _inference}
