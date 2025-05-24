@@ -63,3 +63,6 @@ _build
 
 # Results
 /results/
+
+# Pretraind models
+/pretrained/

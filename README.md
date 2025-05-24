@@ -100,19 +100,67 @@ This procedure works for both Linux Ubuntu and Windows. This documentation is mo
 
 ## Running Experiments
 
-Example train command:
+### Project Structure
+
+We use a custom version of SKRL for RL. The entrypoints for training and evaluation are as follows:
+
+- Train entrypoint: `scripts/reinforcement_learning/skrl/train.py`
+- Eval entrypoint: `scripts/reinforcement_learning/skrl/play.py`
+
+Important files (non-exhaustive list):
+
+- `source/isaaclab/isaaclab/envs/adversarial_manager_based_rl_env.py`: Contains the `adversarial_reset` method, which is support for adversarial positioning on the Isaac Lab side
+- `libraries/skrl_custom/skrl/trainers/torch/base.py`: Contains the `single_agent_train` method, which contains the adversarial training loop
+- `source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/`: Contains Isaac Lab environment configuration files
+- `source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/lift/config/franka/agents/skrl_ppo_cfg.yaml`: Contains configuration for SKRL training, such as timesteps, LR, checkpoint intervals, etc.
+
+During training, log files are saved to the `logs/skrl/franka_lift/` folder.
+
+During eval, save files are conventionally saved to the `results/skrl/` folder.
+
+### Running Experiments
+
+Arguments (see entrypoint source code for full details/options):
+
+- `--task`: The Isaac Lab training task, specified by Hydra
+- `--num_envs`: Number of environments to run in parallel
+- `--checkpoint`: Path to model checkpoint to resume training or eval model
+- `--headless`: This flag is passed to disable initialization of the simulation UI
+- `--enable_cameras`: This flag is passed for environments needing a camera
+- `--positioning` (train only): Adversarial positioning strategy
+- `--max_episodes` (eval only): Number of episodes to run, total number of rollouts is `max_episodes * num_envs`
+- `--save_file` (eval only): File to save position, reward, and success data to
+
+Example train commands for pre-training models on state-based observations in the simple environment (remember to increase timesteps in configuration accordingly):
 
 ```
-isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Clutter1-v0 --num_envs 256 --headless
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand --name simple_domainrand_pt --seed 42
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand_restricted --name simple_domainrandrestrict_pt --seed 42
 ```
 
-Example play command:
+Example eval commands for evaluating the models trained above:
 
 ```
-isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Clutter1-v0 --num_envs 16 --checkpoint logs/skrl/franka_lift/test_model/checkpoints/best_agent.pt
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrand_pt/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrand_pt.json --headless
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 50 --checkpoint logs/skrl/franka_lift/simple_domainrandrestrict_pt/checkpoints/best_agent.pt --max-episodes 40 --save-file simple_domainrandrestrict_pt.json --headless
 ```
 
-Example tensorboard command:
+Example eval command for creating a video (saved inside the `logs/skrl/franka_lift/` folder):
+
+```
+isaaclab.bat -p scripts/reinforcement_learning/skrl/play.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 4 --checkpoint logs/skrl/franka_lift/simple_domainrand_pt/checkpoints/best_agent.pt --headless --video --video_length 20000
+```
+
+Example train commands for fine-tuning a pretrained model, assuming the specified model exists under the `pretrained/` folder:
+
+```
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning pure_adversary --name simple_pt-dr_ft-pureadv --checkpoint pretrained/simple_domainrand_pretrain.pt --seed 1
+isaaclab.bat -p scripts/reinforcement_learning/skrl/train.py --task Isaac-Lift-Cube-Franka-Simple-v0 --num_envs 256 --headless --positioning domain_rand --name simple_pt-dr_ft-dr --checkpoint pretrained/simple_domainrand_pretrain.pt --seed 1
+```
+
+### Tensorboard Logs
+
+We use Tensorboard for logging statistics during training. To start up Tensorboard logs:
 
 ```
 tensorboard --logdir=logs\skrl\franka_lift
